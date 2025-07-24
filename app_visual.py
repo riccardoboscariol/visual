@@ -5,39 +5,43 @@ import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
 import json
+import time
 from streamlit_autorefresh import st_autorefresh
 
-# Auto-refresh ogni 30s
-st_autorefresh(interval=30 * 1000, key="refresh")
+# Auto-refresh ogni 10 secondi
+st_autorefresh(interval=10 * 1000, key="rotate-refresh")
 
-# Config Streamlit
-st.set_page_config(page_title="Visualizzazione Empatica – Animata", layout="wide")
-st.title("🌪️ Spirali Empatiche Dinamiche")
+st.set_page_config(page_title="Spirali Empatiche Dinamiche", layout="wide")
+st.title("🌀 Spirali Empatiche – Simulazione di Rotazione")
 
-# Autenticazione
+# Autenticazione Google Sheets
 scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
 creds_dict = dict(st.secrets["credentials"])
 if isinstance(creds_dict, str):
     creds_dict = json.loads(creds_dict)
+
 creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
 client = gspread.authorize(creds)
 sheet = client.open_by_key("16amhP4JqU5GsGg253F2WJn9rZQIpx1XsP3BHIwXq1EA").sheet1
 
-# Caricamento dati
+# Dati
 records = sheet.get_all_records()
 df = pd.DataFrame(records)
 
 if df.empty:
-    st.warning("Nessun dato ancora registrato.")
+    st.warning("Nessun dato disponibile.")
 else:
-    # Medie per sottoscala
+    # Medie
     pt = df["PT"].mean()
     fantasy = df["Fantasy"].mean()
     concern = df["Empathic Concern"].mean()
     distress = df["Personal Distress"].mean()
 
-    global_mean = np.mean([pt, fantasy, concern, distress])
-    direction = 1 if global_mean > 3.5 else -1  # Rotazione oraria/antioraria
+    media_globale = np.mean([pt, fantasy, concern, distress])
+    direction = 1 if media_globale > 3.5 else -1
+
+    # Angolo in base al tempo → simulazione rotazione
+    offset_angle = time.time() % (2 * np.pi)
 
     spirali = [
         {"val": pt, "color": "#3498db", "label": "PT"},
@@ -50,12 +54,13 @@ else:
     theta = np.linspace(0, 4 * np.pi, 800)
 
     for i, s in enumerate(spirali):
-        intensity = np.clip(s["val"] / 5, 0, 1)
+        intensity = np.clip(s["val"] / 5, 0.05, 1)
         base_radius = (i + 1) * 0.3
         radius = base_radius * (theta / max(theta)) * 2.5 * intensity
 
-        x = radius * np.cos(direction * theta + i * np.pi / 2)
-        y = radius * np.sin(direction * theta + i * np.pi / 2)
+        phase = i * np.pi / 2 + direction * offset_angle
+        x = radius * np.cos(direction * theta + phase)
+        y = radius * np.sin(direction * theta + phase)
 
         fig.add_trace(go.Scatter(
             x=x,
@@ -76,7 +81,8 @@ else:
     )
 
     st.plotly_chart(fig, use_container_width=True)
-    st.caption("🌀 Ogni spirale rappresenta una dimensione empatica. L'intensità e la direzione dipendono dai valori medi cumulativi.")
+    st.caption("🔄 Le spirali ruotano a ogni aggiornamento, simulando un cambiamento continuo nel tempo.")
+
 
 
 
