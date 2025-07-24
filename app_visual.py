@@ -44,21 +44,31 @@ else:
         {"val": distress, "color": "#e84393"}  # PD - rosa
     ]
 
-    theta = np.linspace(0, 4 * np.pi, 1000)
+    max_raggio = 2.8  # massimo raggio raggiunto da qualsiasi spirale
+    theta = np.linspace(0, 4 * np.pi, 800)
 
     for i, s in enumerate(spirali):
-        r = (i + 1) * 0.2 + s["val"] * 0.1
-        alpha = min(1.0, 0.3 + s["val"] * 0.1)
-        lw = 1 + s["val"] * 0.5
+        intensità = np.clip(s["val"] / 5, 0, 1)  # normalizza tra 0 e 1
+        fade = np.linspace(0.2, 1.0, len(theta)) * intensità
 
-        radius = r * theta
-        x = radius * np.cos(theta + i * np.pi / 4)
-        y = radius * np.sin(theta + i * np.pi / 4)
+        r = (i + 1) * 0.3  # distanza base per evitare sovrapposizione
+        radius = r * (theta / max(theta))  # contenuto in max_raggio
+        radius *= max_raggio * intensità
 
-        ax.plot(x, y, color=s["color"], alpha=alpha, linewidth=lw)
+        x = radius * np.cos(theta + i * np.pi / 2)
+        y = radius * np.sin(theta + i * np.pi / 2)
+
+        for j in range(1, len(x)):
+            ax.plot(
+                x[j - 1:j + 1],
+                y[j - 1:j + 1],
+                color=s["color"],
+                alpha=fade[j],
+                linewidth=2 + 3 * intensità
+            )
 
     st.pyplot(fig)
-    st.caption("🌱 L’opera cresce con ogni nuova risposta. Ogni spirale riflette una dimensione empatica.")
+    st.caption("🌱 Ogni spirale rappresenta una dimensione empatica. Più sono alte le medie, più intensa e ampia sarà la spirale.")
 
 
 
