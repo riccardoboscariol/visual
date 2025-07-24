@@ -1,4 +1,5 @@
 import streamlit as st
+from streamlit_autorefresh import st_autorefresh
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 import pandas as pd
@@ -8,9 +9,13 @@ import json
 
 # Configura Streamlit
 st.set_page_config(page_title="Visualizzazione Empatica", layout="wide")
+
+# 🔄 Auto-refresh ogni 15 secondi
+st_autorefresh(interval=15000, key="auto_refresh")
+
 st.title("🌀 Forma Empatica Generativa – Cumulativa")
 
-# Autenticazione
+# Autenticazione Google Sheets
 scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
 creds_dict = dict(st.secrets["credentials"])
 if isinstance(creds_dict, str):
@@ -20,14 +25,14 @@ creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
 client = gspread.authorize(creds)
 sheet = client.open_by_key("16amhP4JqU5GsGg253F2WJn9rZQIpx1XsP3BHIwXq1EA").sheet1
 
-# Carica dati
+# Carica i dati
 records = sheet.get_all_records()
 df = pd.DataFrame(records)
 
 if df.empty:
     st.warning("Nessun dato ancora registrato.")
 else:
-    # Calcola le medie
+    # Medie cumulative
     pt = df["PT"].mean()
     fantasy = df["Fantasy"].mean()
     concern = df["Empathic Concern"].mean()
@@ -38,37 +43,40 @@ else:
     ax.axis('off')
 
     spirali = [
-        {"val": pt, "color": "#3498db"},       # PT - blu
-        {"val": fantasy, "color": "#9b59b6"},  # Fantasy - viola
-        {"val": concern, "color": "#e67e22"},  # EC - arancio
-        {"val": distress, "color": "#e84393"}  # PD - rosa
+        {"val": pt, "color": "#3498db"},
+        {"val": fantasy, "color": "#9b59b6"},
+        {"val": concern, "color": "#e67e22"},
+        {"val": distress, "color": "#e84393"}
     ]
 
-    max_raggio = 2.8  # massimo raggio raggiunto da qualsiasi spirale
-    theta = np.linspace(0, 4 * np.pi, 800)
+    theta = np.linspace(0, 6 * np.pi, 1000)
 
     for i, s in enumerate(spirali):
-        intensità = np.clip(s["val"] / 5, 0, 1)  # normalizza tra 0 e 1
-        fade = np.linspace(0.2, 1.0, len(theta)) * intensità
+        base_radius = 1.0  # stesso raggio base per tutti
+        radius_variation = 0.2 * s["val"]
+        radius = base_radius + radius_variation
 
-        r = (i + 1) * 0.3  # distanza base per evitare sovrapposizione
-        radius = r * (theta / max(theta))  # contenuto in max_raggio
-        radius *= max_raggio * intensità
+        alpha = min(1.0, 0.3 + s["val"] * 0.1)
+        lw = 1 + s["val"] * 0.5
 
-        x = radius * np.cos(theta + i * np.pi / 2)
-        y = radius * np.sin(theta + i * np.pi / 2)
+        r = radius * np.ones_like(theta)
+        x = r * np.cos(theta + i * np.pi / 4)
+        y = r * np.sin(theta + i * np.pi / 4)
 
-        for j in range(1, len(x)):
+        # Colore con gradiente
+        for j in range(len(theta) - 1):
+            frac = j / len(theta)
             ax.plot(
-                x[j - 1:j + 1],
-                y[j - 1:j + 1],
+                x[j:j+2],
+                y[j:j+2],
                 color=s["color"],
-                alpha=fade[j],
-                linewidth=2 + 3 * intensità
+                alpha=alpha * (0.5 + 0.5 * frac),
+                linewidth=lw
             )
 
     st.pyplot(fig)
-    st.caption("🌱 Ogni spirale rappresenta una dimensione empatica. Più sono alte le medie, più intensa e ampia sarà la spirale.")
+    st.caption("🌱 L’opera cresce con ogni nuova risposta. Le spirali rappresentano le dimensioni empatiche in evoluzione.")
+
 
 
 
