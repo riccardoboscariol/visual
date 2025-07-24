@@ -6,16 +6,12 @@ import matplotlib.pyplot as plt
 import numpy as np
 import json
 
-# Configura la pagina
+# Configura Streamlit
 st.set_page_config(page_title="Visualizzazione Empatica", layout="wide")
-st.title("🌀 Forma Empatica Generativa")
+st.title("🌀 Forma Empatica Generativa – Cumulativa")
 
-# Autenticazione Google Sheets
-scope = [
-    "https://spreadsheets.google.com/feeds",
-    "https://www.googleapis.com/auth/drive"
-]
-
+# Autenticazione
+scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
 creds_dict = dict(st.secrets["credentials"])
 if isinstance(creds_dict, str):
     creds_dict = json.loads(creds_dict)
@@ -24,50 +20,45 @@ creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
 client = gspread.authorize(creds)
 sheet = client.open_by_key("16amhP4JqU5GsGg253F2WJn9rZQIpx1XsP3BHIwXq1EA").sheet1
 
-# Carica le risposte
+# Carica dati
 records = sheet.get_all_records()
 df = pd.DataFrame(records)
 
-# Ultima riga
-if not df.empty:
-    last = df.iloc[-1]
+if df.empty:
+    st.warning("Nessun dato ancora registrato.")
+else:
+    # Calcola le medie
+    pt = df["PT"].mean()
+    fantasy = df["Fantasy"].mean()
+    concern = df["Empathic Concern"].mean()
+    distress = df["Personal Distress"].mean()
 
-    # Estrai i punteggi
-    pt = last["PT"]
-    fantasy = last["Fantasy"]
-    concern = last["Empathic Concern"]
-    distress = last["Personal Distress"]
-
-    # Inizia generazione artistica
-    st.subheader("🌈 Forma basata sull'empatia")
-    fig, ax = plt.subplots(figsize=(8, 8))
+    fig, ax = plt.subplots(figsize=(10, 10))
     ax.set_aspect('equal')
     ax.axis('off')
 
-    # Parametri normalizzati
-    n_bracci = int(round(pt)) + 2
-    ampiezza = fantasy / 2
-    colori = ['#FF6B6B', '#6BCB77', '#4D96FF', '#FFC75F']
-    alpha = min(max(concern / 7, 0.2), 0.9)
-    intensità = distress * 5
+    spirali = [
+        {"val": pt, "color": "#3498db"},       # PT - blu
+        {"val": fantasy, "color": "#9b59b6"},  # Fantasy - viola
+        {"val": concern, "color": "#e67e22"},  # EC - arancio
+        {"val": distress, "color": "#e84393"}  # PD - rosa
+    ]
 
-    # Disegno spirali dinamiche con "movimento"
-    for i in range(n_bracci):
-        t = np.linspace(0, 4 * np.pi, 400)
-        r = ampiezza * t
-        r_mod = r + np.sin(3 * t + i) * 0.3 * (distress / 5)  # effetto movimento
-        x = r_mod * np.cos(t + i * 2 * np.pi / n_bracci)
-        y = r_mod * np.sin(t + i * 2 * np.pi / n_bracci)
-        ax.plot(x, y, alpha=alpha, linewidth=2.5, color=colori[i % len(colori)])
+    theta = np.linspace(0, 4 * np.pi, 1000)
 
-    # Auto-zoom per non tagliare nulla
-    limite = (ampiezza + 1.5) * intensità
-    ax.set_xlim(-limite, limite)
-    ax.set_ylim(-limite, limite)
+    for i, s in enumerate(spirali):
+        r = (i + 1) * 0.2 + s["val"] * 0.1
+        alpha = min(1.0, 0.3 + s["val"] * 0.1)
+        lw = 1 + s["val"] * 0.5
+
+        radius = r * theta
+        x = radius * np.cos(theta + i * np.pi / 4)
+        y = radius * np.sin(theta + i * np.pi / 4)
+
+        ax.plot(x, y, color=s["color"], alpha=alpha, linewidth=lw)
 
     st.pyplot(fig)
+    st.caption("🌱 L’opera cresce con ogni nuova risposta. Ogni spirale riflette una dimensione empatica.")
 
-else:
-    st.warning("Non ci sono ancora risposte registrate nel foglio Google Sheets.")
 
 
