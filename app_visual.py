@@ -1,93 +1,64 @@
 import streamlit as st
 import gspread
-import json
-import pandas as pd
-import plotly.graph_objs as go
-import plotly.io as pio
 from oauth2client.service_account import ServiceAccountCredentials
+import pandas as pd
+import matplotlib.pyplot as plt
+import numpy as np
+import json
 
-# --- Autenticazione Google Sheets ---
+# Configura la pagina
+st.set_page_config(page_title="Visualizzazione Empatica", layout="wide")
+st.title("🌀 Forma Empatica Generativa")
+
+# Autenticazione Google Sheets
 scope = [
     "https://spreadsheets.google.com/feeds",
-    "https://www.googleapis.com/auth/spreadsheets",
     "https://www.googleapis.com/auth/drive"
 ]
+
 creds_dict = dict(st.secrets["credentials"])
 if isinstance(creds_dict, str):
     creds_dict = json.loads(creds_dict)
+
 creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
 client = gspread.authorize(creds)
+sheet = client.open_by_key("16amhP4JqU5GsGg253F2WJn9rZQIpx1XsP3BHIwXq1EA").sheet1
 
-# --- Apri Sheet
-SHEET_ID = "16amhP4JqU5GsGg253F2WJn9rZQIpx1XsP3BHIwXq1EA"
-try:
-    sheet = client.open_by_key(SHEET_ID).sheet1
-except Exception:
-    st.error("Errore accesso a Google Sheet — controlla credenziali e permessi.")
-    st.stop()
-
-# --- Carica dati
+# Carica le risposte
 records = sheet.get_all_records()
-if not records:
-    st.warning("Nessuna risposta trovata.")
-    st.stop()
-
 df = pd.DataFrame(records)
 
-# --- Estrai l’ultima riga (ultima risposta)
-latest = df.tail(1).iloc[0]
+# Ultima riga
+if not df.empty:
+    last = df.iloc[-1]
 
-# --- IRI: colonne finali con punteggi
-iri_cols = ["Perspective Taking", "Fantasy", "Empathic Concern", "Personal Distress"]
-iri_scores = {col: latest.get(col) for col in iri_cols}
+    # Estrai i punteggi
+    pt = last["PT"]
+    fantasy = last["Fantasy"]
+    concern = last["Empathic Concern"]
+    distress = last["Personal Distress"]
 
-st.header("🧠 Forma empatica generata")
-st.write("Ultima risposta ricevuta alle:", latest.get("timestamp", "—"))
+    # Inizia generazione artistica
+    st.subheader("🌈 Forma basata sull'empatia")
+    fig, ax = plt.subplots(figsize=(8, 8))
+    ax.set_aspect('equal')
+    ax.axis('off')
 
-# --- Grafico radar iniziale
-categories = list(iri_scores.keys())
-values = list(iri_scores.values())
-values += values[:1]  # chiusura
+    # Punteggi → raggi
+    radii = [pt, fantasy, concern, distress]
+    colors = ['#6baed6', '#9e9ac8', '#fd8d3c', '#f768a1']
+    labels = ["PT", "Fantasy", "Concern", "Distress"]
 
-fig = go.Figure(
-    data=[
-        go.Scatterpolar(
-            r=values,
-            theta=categories + [categories[0]],
-            fill="toself",
-            name="IRI Scores",
-            line_color="mediumblue"
-        )
-    ],
-    layout=go.Layout(
-        polar=dict(radialaxis=dict(visible=True, range=[0, 5])),
-        showlegend=False
-    )
-)
+    # Cerchi concentrici
+    for i, r in enumerate(sorted(radii, reverse=True)):
+        circle = plt.Circle((0, 0), r * 0.6, color=colors[i], alpha=0.4, label=labels[i])
+        ax.add_patch(circle)
 
-# Mostra grafico iniziale
-st.plotly_chart(fig, use_container_width=True, key="initial_chart")
+    # Legenda
+    ax.legend(loc="upper right")
 
-# --- Interazione
-st.subheader("🎨 Personalizza la tua forma")
-color = st.color_picker("Scegli un colore", "#4455aa")
-scale = st.slider("Scala dimensione", 0.5, 2.0, 1.0)
+    st.pyplot(fig)
 
-fig.update_traces(fillcolor=color, line_color=color)
-fig.update_layout(width=int(400 * scale), height=int(400 * scale))
-
-# Mostra grafico personalizzato
-st.plotly_chart(fig, use_container_width=True, key="custom_chart")
-
-# --- Download (richiede kaleido)
-try:
-    img_bytes = fig.to_image(format="png")
-    st.download_button(
-        label="📥 Scarica immagine",
-        data=img_bytes,
-        file_name="forma_empatica.png",
-        mime="image/png"
-    )
-except Exception as e:
-    st.warning("⚠️ Kaleido non disponibile. Impossibile generare immagine scaricabile.")
+else:
+    st.warning("Non ci sono ancora risposte registrate nel foglio Google Sheets.")
 
