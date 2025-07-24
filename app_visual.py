@@ -7,8 +7,8 @@ import numpy as np
 import json
 
 # Configura la pagina
-st.set_page_config(page_title="Forma Empatica", layout="wide")
-st.title("🌌 Visualizzazione Generativa Empatica")
+st.set_page_config(page_title="Visualizzazione Empatica", layout="wide")
+st.title("🌀 Forma Empatica Generativa")
 
 # Autenticazione Google Sheets
 scope = [
@@ -24,52 +24,50 @@ creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
 client = gspread.authorize(creds)
 sheet = client.open_by_key("16amhP4JqU5GsGg253F2WJn9rZQIpx1XsP3BHIwXq1EA").sheet1
 
-# Carica i dati
+# Carica le risposte
 records = sheet.get_all_records()
 df = pd.DataFrame(records)
 
-# Verifica presenza dati
+# Ultima riga
 if not df.empty:
     last = df.iloc[-1]
 
-    try:
-        pt = float(last["PT"])
-        fantasy = float(last["Fantasy"])
-        concern = float(last["Empathic Concern"])
-        distress = float(last["Personal Distress"])
-    except KeyError as e:
-        st.error(f"Colonna mancante: {e}")
-        st.stop()
+    # Estrai i punteggi
+    pt = last["PT"]
+    fantasy = last["Fantasy"]
+    concern = last["Empathic Concern"]
+    distress = last["Personal Distress"]
 
-    # Parametri derivati normalizzati
+    # Inizia generazione artistica
+    st.subheader("🌈 Forma basata sull'empatia")
+    fig, ax = plt.subplots(figsize=(8, 8))
+    ax.set_aspect('equal')
+    ax.axis('off')
+
+    # Parametri normalizzati
     n_bracci = int(round(pt)) + 2
     ampiezza = fantasy / 2
     colori = ['#FF6B6B', '#6BCB77', '#4D96FF', '#FFC75F']
-    alpha = min(max(concern / 7, 0.2), 0.9)  # safe clamp
+    alpha = min(max(concern / 7, 0.2), 0.9)
     intensità = distress * 5
 
+    # Disegno spirali dinamiche con "movimento"
+    for i in range(n_bracci):
+        t = np.linspace(0, 4 * np.pi, 400)
+        r = ampiezza * t
+        r_mod = r + np.sin(3 * t + i) * 0.3 * (distress / 5)  # effetto movimento
+        x = r_mod * np.cos(t + i * 2 * np.pi / n_bracci)
+        y = r_mod * np.sin(t + i * 2 * np.pi / n_bracci)
+        ax.plot(x, y, alpha=alpha, linewidth=2.5, color=colori[i % len(colori)])
 
-    # Disegna spirale generativa
-    fig, ax = plt.subplots(figsize=(8, 8))
-    ax.set_facecolor("black")
-    ax.axis("off")
-
-    t = np.linspace(0, 2 * np.pi * n_bracci, 1000)
-    r = 1 + ampiezza * np.sin(intensità * t)
-
-    for i in range(4):
-        x = r * np.cos(t + i * np.pi/2)
-        y = r * np.sin(t + i * np.pi/2)
-        ax.plot(x, y, alpha=alpha, linewidth=2.5, color=colori[i])
-
-    # Cerchi concentrici come base
-    for i in range(1, 5):
-        circle = plt.Circle((0, 0), i, edgecolor="white", fill=False, alpha=0.1)
-        ax.add_patch(circle)
+    # Auto-zoom per non tagliare nulla
+    limite = (ampiezza + 1.5) * intensità
+    ax.set_xlim(-limite, limite)
+    ax.set_ylim(-limite, limite)
 
     st.pyplot(fig)
 
 else:
-    st.warning("Non ci sono ancora risposte nel foglio.")
+    st.warning("Non ci sono ancora risposte registrate nel foglio Google Sheets.")
 
 
