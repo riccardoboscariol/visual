@@ -71,5 +71,5 @@ fig.update_layout(width=int(400 * scale), height=int(400 * scale))
 st.plotly_chart(fig, use_container_width=True)
 
 # --- Download immagine
-img_bytes = fig.to_image(format="png")
+st.plotly_chart(fig, use_container_width=True)
 st.download_button("📥 Scarica immagine", data=img_bytes, file_name="forma_empatica.png", mime="image/png")
