@@ -3,4 +3,5 @@ gspread
 oauth2client
 pandas
 matplotlib
+numpy
 streamlit-autorefresh
