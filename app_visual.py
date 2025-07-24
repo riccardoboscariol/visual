@@ -1,20 +1,20 @@
 import streamlit as st
-from streamlit_autorefresh import st_autorefresh
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 import pandas as pd
-import matplotlib.pyplot as plt
 import numpy as np
+import plotly.graph_objects as go
 import json
+from streamlit_autorefresh import st_autorefresh
 
-# Configura Streamlit
-st.set_page_config(page_title="Visualizzazione Empatica", layout="wide")
-st.title("🌀 Forma Empatica Generativa – Cumulativa e Dinamica")
+# Auto-refresh ogni 30s
+st_autorefresh(interval=30 * 1000, key="refresh")
 
-# Auto-refresh ogni 20s
-st_autorefresh(interval=20000, key="auto_refresh")
+# Config Streamlit
+st.set_page_config(page_title="Visualizzazione Empatica – Animata", layout="wide")
+st.title("🌪️ Spirali Empatiche Dinamiche")
 
-# Autenticazione Google Sheets
+# Autenticazione
 scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
 creds_dict = dict(st.secrets["credentials"])
 if isinstance(creds_dict, str):
@@ -23,71 +23,60 @@ creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
 client = gspread.authorize(creds)
 sheet = client.open_by_key("16amhP4JqU5GsGg253F2WJn9rZQIpx1XsP3BHIwXq1EA").sheet1
 
-# Carica i dati
+# Caricamento dati
 records = sheet.get_all_records()
 df = pd.DataFrame(records)
 
 if df.empty:
     st.warning("Nessun dato ancora registrato.")
 else:
-    # 🔎 Calcolo media ponderata (peso maggiore agli ultimi invii)
-    pesi = np.linspace(0.3, 1.0, len(df))  # da 30% a 100%
-    pesi /= pesi.sum()
+    # Medie per sottoscala
+    pt = df["PT"].mean()
+    fantasy = df["Fantasy"].mean()
+    concern = df["Empathic Concern"].mean()
+    distress = df["Personal Distress"].mean()
 
-    def media_ponderata(col):
-        return np.average(df[col], weights=pesi)
-
-    pt = media_ponderata("PT")
-    fantasy = media_ponderata("Fantasy")
-    concern = media_ponderata("Empathic Concern")
-    distress = media_ponderata("Personal Distress")
-
-    fig, ax = plt.subplots(figsize=(10, 10))
-    ax.set_aspect('equal')
-    ax.axis('off')
+    global_mean = np.mean([pt, fantasy, concern, distress])
+    direction = 1 if global_mean > 3.5 else -1  # Rotazione oraria/antioraria
 
     spirali = [
-        {"val": pt, "color": "#3498db"},       # PT - blu
-        {"val": fantasy, "color": "#9b59b6"},  # Fantasy - viola
-        {"val": concern, "color": "#e67e22"},  # EC - arancio
-        {"val": distress, "color": "#e84393"}  # PD - rosa
+        {"val": pt, "color": "#3498db", "label": "PT"},
+        {"val": fantasy, "color": "#9b59b6", "label": "Fantasy"},
+        {"val": concern, "color": "#e67e22", "label": "Concern"},
+        {"val": distress, "color": "#e84393", "label": "Distress"},
     ]
 
-    max_raggio = 2.8
+    fig = go.Figure()
     theta = np.linspace(0, 4 * np.pi, 800)
 
-    # 📊 Calcola media generale teorica (su scala 1–5)
-    media_generale = 3.5
-    media_attuale = np.mean([pt, fantasy, concern, distress])
-
-    # Se sopra la media teorica → senso orario, altrimenti antiorario
-    direzione = 1 if media_attuale >= media_generale else -1
-
     for i, s in enumerate(spirali):
-        intensità = np.clip(s["val"] / 5, 0, 1)
-        fade = np.linspace(0.3, 1.0, len(theta)) * intensità
+        intensity = np.clip(s["val"] / 5, 0, 1)
+        base_radius = (i + 1) * 0.3
+        radius = base_radius * (theta / max(theta)) * 2.5 * intensity
 
-        r = (i + 1) * 0.25
-        radius = r * (theta / max(theta))
-        radius *= max_raggio * (0.4 + 0.6 * intensità)
+        x = radius * np.cos(direction * theta + i * np.pi / 2)
+        y = radius * np.sin(direction * theta + i * np.pi / 2)
 
-        # direzione + shift angolare
-        angolo = direzione * theta + i * np.pi / 2
-        x = radius * np.cos(angolo)
-        y = radius * np.sin(angolo)
+        fig.add_trace(go.Scatter(
+            x=x,
+            y=y,
+            mode="lines",
+            line=dict(color=s["color"], width=2 + 3 * intensity),
+            name=s["label"],
+            opacity=0.7
+        ))
 
-        for j in range(1, len(x)):
-            ax.plot(
-                x[j - 1:j + 1],
-                y[j - 1:j + 1],
-                color=s["color"],
-                alpha=fade[j],
-                linewidth=2 + 4 * intensità
-            )
+    fig.update_layout(
+        showlegend=True,
+        height=800,
+        width=800,
+        margin=dict(l=0, r=0, t=40, b=40),
+        xaxis=dict(visible=False),
+        yaxis=dict(visible=False),
+    )
 
-    st.pyplot(fig)
-    st.caption("🌱 Ogni spirale riflette una dimensione empatica. Più sono alte le medie recenti, più si espandono.")
-    st.caption("🔁 Le spirali ruotano in senso orario se l'empatia media è superiore alla media teorica.")
+    st.plotly_chart(fig, use_container_width=True)
+    st.caption("🌀 Ogni spirale rappresenta una dimensione empatica. L'intensità e la direzione dipendono dai valori medi cumulativi.")
 
 
 
