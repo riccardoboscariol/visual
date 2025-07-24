@@ -41,12 +41,13 @@ if not df.empty:
         st.error(f"Colonna mancante: {e}")
         st.stop()
 
-    # Parametri derivati
-    n_bracci = int(round(pt)) + 2           # Spirale: più bracci → più PT
-    ampiezza = fantasy / 2                  # Espansione → Fantasy
-    colori = ['#FF6B6B', '#6BCB77', '#4D96FF', '#FFC75F']  # palette custom
-    alpha = max(0.2, concern / 5)           # Trasparenza in base a quanto ti preoccupi degli altri
-    intensità = distress * 5                # Frequenza → Distress
+    # Parametri derivati normalizzati
+    n_bracci = int(round(pt)) + 2
+    ampiezza = fantasy / 2
+    colori = ['#FF6B6B', '#6BCB77', '#4D96FF', '#FFC75F']
+    alpha = min(max(concern / 7, 0.2), 0.9)  # safe clamp
+    intensità = distress * 5
+
 
     # Disegna spirale generativa
     fig, ax = plt.subplots(figsize=(8, 8))
