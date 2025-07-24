@@ -7,8 +7,8 @@ import numpy as np
 import json
 
 # Configura la pagina
-st.set_page_config(page_title="Visualizzazione Empatica", layout="wide")
-st.title("🌀 Forma Empatica Generativa")
+st.set_page_config(page_title="Forma Empatica", layout="wide")
+st.title("🌌 Visualizzazione Generativa Empatica")
 
 # Autenticazione Google Sheets
 scope = [
@@ -24,41 +24,51 @@ creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
 client = gspread.authorize(creds)
 sheet = client.open_by_key("16amhP4JqU5GsGg253F2WJn9rZQIpx1XsP3BHIwXq1EA").sheet1
 
-# Carica le risposte
+# Carica i dati
 records = sheet.get_all_records()
 df = pd.DataFrame(records)
 
-# Ultima riga
+# Verifica presenza dati
 if not df.empty:
     last = df.iloc[-1]
 
-    # Estrai i punteggi
-    pt = last["PT"]
-    fantasy = last["Fantasy"]
-    concern = last["Empathic Concern"]
-    distress = last["Personal Distress"]
+    try:
+        pt = float(last["PT"])
+        fantasy = float(last["Fantasy"])
+        concern = float(last["Empathic Concern"])
+        distress = float(last["Personal Distress"])
+    except KeyError as e:
+        st.error(f"Colonna mancante: {e}")
+        st.stop()
 
-    # Inizia generazione artistica
-    st.subheader("🌈 Forma basata sull'empatia")
+    # Parametri derivati
+    n_bracci = int(round(pt)) + 2           # Spirale: più bracci → più PT
+    ampiezza = fantasy / 2                  # Espansione → Fantasy
+    colori = ['#FF6B6B', '#6BCB77', '#4D96FF', '#FFC75F']  # palette custom
+    alpha = max(0.2, concern / 5)           # Trasparenza in base a quanto ti preoccupi degli altri
+    intensità = distress * 5                # Frequenza → Distress
+
+    # Disegna spirale generativa
     fig, ax = plt.subplots(figsize=(8, 8))
-    ax.set_aspect('equal')
-    ax.axis('off')
+    ax.set_facecolor("black")
+    ax.axis("off")
 
-    # Punteggi → raggi
-    radii = [pt, fantasy, concern, distress]
-    colors = ['#6baed6', '#9e9ac8', '#fd8d3c', '#f768a1']
-    labels = ["PT", "Fantasy", "Concern", "Distress"]
+    t = np.linspace(0, 2 * np.pi * n_bracci, 1000)
+    r = 1 + ampiezza * np.sin(intensità * t)
 
-    # Cerchi concentrici
-    for i, r in enumerate(sorted(radii, reverse=True)):
-        circle = plt.Circle((0, 0), r * 0.6, color=colors[i], alpha=0.4, label=labels[i])
+    for i in range(4):
+        x = r * np.cos(t + i * np.pi/2)
+        y = r * np.sin(t + i * np.pi/2)
+        ax.plot(x, y, alpha=alpha, linewidth=2.5, color=colori[i])
+
+    # Cerchi concentrici come base
+    for i in range(1, 5):
+        circle = plt.Circle((0, 0), i, edgecolor="white", fill=False, alpha=0.1)
         ax.add_patch(circle)
-
-    # Legenda
-    ax.legend(loc="upper right")
 
     st.pyplot(fig)
 
 else:
-    st.warning("Non ci sono ancora risposte registrate nel foglio Google Sheets.")
+    st.warning("Non ci sono ancora risposte nel foglio.")
+
 
