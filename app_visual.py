@@ -89,6 +89,22 @@ components.html(html_str, height=720, scrolling=False)
 
 st.caption("🌀 Le spirali reagiscono ai punteggi medi, con colori psichedelici e trasparenze. L’opera evolve ogni 10 secondi.")
 
+# 📘 Descrizione dell'opera
+st.markdown("---")
+st.markdown(
+    """
+    ### 🧭 *Empatia come consapevolezza dell’impatto*
+
+    > *“L’empatia non è solo sentire l’altro, ma riconoscere il proprio impatto sul mondo e sulla realtà condivisa. È un atto di presenza responsabile.”*
+
+    **Breve descrizione:**  
+    Questa opera esplora l’empatia come dimensione attiva e relazionale della coscienza.  
+    Andando oltre la semplice risonanza emotiva, propone una visione dell’empatia come capacità di percepire e modulare il proprio effetto sugli altri e sull’ambiente, promuovendo consapevolezza, connessione e cura.
+    """,
+    unsafe_allow_html=True
+)
+
+
 
 
 
