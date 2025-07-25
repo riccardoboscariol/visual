@@ -87,7 +87,7 @@ fig.update_layout(
 html_str = pio.to_html(fig, include_plotlyjs='cdn')
 components.html(html_str, height=720, scrolling=False)
 
-st.caption("🌀 Le spirali reagiscono ai punteggi medi, con colori psichedelici e trasparenze. L’opera evolve ogni 10 secondi.")
+st.caption("🌀 Le spirali reagiscono ai punteggi cumulativi al test, con modifiche nelle geometrie, nei colori e nelle trasparenze. L’opera evolve ogni 10 secondi.")
 
 # 📘 Descrizione dell'opera
 st.markdown("---")
