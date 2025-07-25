@@ -2,5 +2,7 @@ streamlit
 gspread
 oauth2client
 pandas
+matplotlib
+numpy
 plotly
-streamlit_autorefresh
+streamlit-autorefresh
