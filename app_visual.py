@@ -8,13 +8,14 @@ import json
 import plotly.io as pio
 import streamlit.components.v1 as components
 from streamlit_autorefresh import st_autorefresh
+from matplotlib import cm
 
-# 🔄 Auto-refresh ogni 10 secondi
+# 🔄 Refresh automatico ogni 10 secondi
 st_autorefresh(interval=10 * 1000, key="auto_refresh")
 
 # 🔧 Configurazione pagina
-st.set_page_config(page_title="Visualizzazione Empatica", layout="wide")
-st.title("🌀 Forma Empatica Interattiva – HTML Embed")
+st.set_page_config(page_title="Forma Empatica Psichedelica", layout="wide")
+st.title("🌈 Forma Empatica Psichedelica – Cumulativa & Reattiva")
 
 # 🔐 Credenziali
 scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
@@ -25,15 +26,15 @@ creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
 client = gspread.authorize(creds)
 sheet = client.open_by_key("16amhP4JqU5GsGg253F2WJn9rZQIpx1XsP3BHIwXq1EA").sheet1
 
-# 📥 Carica dati
+# 📥 Dati
 records = sheet.get_all_records()
 df = pd.DataFrame(records)
 
 if df.empty:
-    st.warning("Nessuna risposta ancora.")
+    st.warning("Nessuna risposta registrata.")
     st.stop()
 
-# 📊 Calcolo medie
+# 📊 Punteggi medi
 pt = df["PT"].mean()
 fantasy = df["Fantasy"].mean()
 concern = df["Empathic Concern"].mean()
@@ -41,33 +42,38 @@ distress = df["Personal Distress"].mean()
 
 values = [pt, fantasy, concern, distress]
 labels = ["PT", "Fantasy", "Concern", "Distress"]
-colors = ["#3498db", "#9b59b6", "#e67e22", "#e84393"]
 
-# 🌀 Spirali animate con variazione più evidente
+# 🎨 Colormap psichedelica (viridis, plasma, magma…)
+colormaps = [cm.plasma, cm.magma, cm.inferno, cm.viridis]
+
 fig = go.Figure()
-theta = np.linspace(0, 10 * np.pi, 1000)
+theta = np.linspace(0, 12 * np.pi, 1200)
 
-for i, val in enumerate(values):
-    intensity = np.clip(val / 5, 0.3, 1.0)
-    r = (i + 1) * 0.3
-    radius = r * (theta / max(theta)) * intensity * 4.5  # amplificato
+for i, (val, cmap) in enumerate(zip(values, colormaps)):
+    # Intensità
+    intensity = np.clip(val / 5, 0.2, 1.0)
+    r = (i + 1) * 0.25
+    radius = r * (theta / max(theta)) * intensity * 4.5
 
     x = radius * np.cos(theta + i)
     y = radius * np.sin(theta + i)
 
-    for j in range(0, len(theta) - 1, 6):
+    # Genera gradiente di colore
+    normalized = np.linspace(0, 1, len(x))
+    rgba = cmap(normalized)
+    rgba = (rgba * 255).astype(int)
+
+    for j in range(1, len(x), 4):
+        color = f"rgba({rgba[j][0]}, {rgba[j][1]}, {rgba[j][2]}, {0.3 + 0.6 * normalized[j]:.2f})"
         fig.add_trace(go.Scatter(
-            x=x[j:j+2], y=y[j:j+2],
+            x=x[j-1:j+1], y=y[j-1:j+1],
             mode="lines",
-            line=dict(
-                color=colors[i],
-                width=2 + intensity * 5,
-                dash="dash" if val < 3 else "solid"
-            ),
+            line=dict(color=color, width=1.5 + intensity * 3),
             hoverinfo="none",
             showlegend=False
         ))
 
+# Layout nero spaziale
 fig.update_layout(
     xaxis=dict(visible=False),
     yaxis=dict(visible=False),
@@ -77,11 +83,11 @@ fig.update_layout(
     autosize=True,
 )
 
-# 💾 Embed HTML in app
+# Embed HTML (interattivo)
 html_str = pio.to_html(fig, include_plotlyjs='cdn')
 components.html(html_str, height=720, scrolling=False)
 
-st.caption("🌱 Le spirali si aggiornano ogni 10 secondi. L'intensità, il colore e lo stile cambiano in base alle medie empatiche.")
+st.caption("🌀 Le spirali reagiscono ai punteggi medi, con colori psichedelici e trasparenze. L’opera evolve ogni 10 secondi.")
 
 
 
