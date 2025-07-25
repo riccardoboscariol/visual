@@ -6,11 +6,10 @@ import plotly.graph_objects as go
 import numpy as np
 import json
 import plotly.io as pio
-import uuid
-import os
+import streamlit.components.v1 as components
 
 st.set_page_config(page_title="Visualizzazione Empatica", layout="wide")
-st.title("🌀 Forma Empatica Interattiva – HTML a parte")
+st.title("🌀 Forma Empatica Interattiva – HTML Embed")
 
 # 🔁 Credenziali Google Sheets
 scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
@@ -51,7 +50,7 @@ for i, val in enumerate(values):
     x = radius * np.cos(theta)
     y = radius * np.sin(theta)
 
-    for j in range(0, len(theta), 5):  # linee per effetto fade
+    for j in range(0, len(theta), 5):
         fig.add_trace(go.Scatter(
             x=x[j:j+2], y=y[j:j+2],
             mode="lines",
@@ -59,7 +58,6 @@ for i, val in enumerate(values):
             showlegend=False
         ))
 
-# Layout centrato
 fig.update_layout(
     xaxis=dict(visible=False),
     yaxis=dict(visible=False),
@@ -69,22 +67,13 @@ fig.update_layout(
     autosize=True,
 )
 
-# 💾 Salva come HTML
-html_path = f"/tmp/spirale_{uuid.uuid4().hex[:8]}.html"
-pio.write_html(fig, file=html_path, full_html=True, auto_play=True)
+# ⬇️ Salva come HTML temporaneo
+html_str = pio.to_html(fig, include_plotlyjs='cdn')
 
-# 📤 Link per apertura in nuova scheda
-with open(html_path, "r") as f:
-    html_content = f.read()
+# ⏬ Mostra il grafico in un iframe
+components.html(html_str, height=700, scrolling=False)
 
-b64_html = html_content.encode("utf-8").decode("utf-8")
-st.markdown(
-    f'<a href="data:text/html;charset=utf-8,{b64_html}" target="_blank">'
-    f'<button style="font-size:20px;">🌐 Apri visualizzazione interattiva</button></a>',
-    unsafe_allow_html=True
-)
-
-st.caption("⚙️ L'HTML generato è interattivo e aggiornato con le medie correnti.")
+st.caption("🌱 Il grafico si aggiorna dinamicamente con ogni nuova risposta. Le spirali riflettono le 4 dimensioni empatiche.")
 
 
 
