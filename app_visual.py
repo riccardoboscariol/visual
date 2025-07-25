@@ -99,8 +99,7 @@ st.markdown(
 
     **Breve descrizione:**  
     Questa opera esplora l’empatia come dimensione attiva e relazionale della coscienza.  
-    Andando oltre la semplice risonanza emotiva, propone una visione dell’empatia come capacità di percepire e modulare il proprio effetto sugli altri e sull’ambiente, promuovendo consapevolezza, connessione e cura.
-    """,
+    Andando oltre la semplice risonanza emotiva, propone una visione dell’empatia come capacità di percepire e modulare il proprio effetto sulla realtà.""",
     unsafe_allow_html=True
 )
 
