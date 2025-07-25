@@ -14,8 +14,8 @@ from matplotlib import cm
 st_autorefresh(interval=10 * 1000, key="auto_refresh")
 
 # 🔧 Configurazione pagina
-st.set_page_config(page_title="Forma Empatica Psichedelica", layout="wide")
-st.title("🌈 Forma Empatica Psichedelica – Cumulativa & Reattiva")
+st.set_page_config(page_title="Specchio empatico", layout="wide")
+st.title("Forma interattiva")
 
 # 🔐 Credenziali
 scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
