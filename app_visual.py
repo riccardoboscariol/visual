@@ -15,7 +15,7 @@ st_autorefresh(interval=10 * 1000, key="auto_refresh")
 
 # 🔧 Configurazione pagina
 st.set_page_config(page_title="Specchio empatico", layout="wide")
-st.title("Forma interattiva")
+st.title("Specchio empatico")
 
 # 🔐 Credenziali
 scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
