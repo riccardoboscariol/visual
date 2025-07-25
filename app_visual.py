@@ -7,11 +7,16 @@ import numpy as np
 import json
 import plotly.io as pio
 import streamlit.components.v1 as components
+from streamlit_autorefresh import st_autorefresh
 
+# 🔄 Auto-refresh ogni 10 secondi
+st_autorefresh(interval=10 * 1000, key="auto_refresh")
+
+# 🔧 Configurazione pagina
 st.set_page_config(page_title="Visualizzazione Empatica", layout="wide")
 st.title("🌀 Forma Empatica Interattiva – HTML Embed")
 
-# 🔁 Credenziali Google Sheets
+# 🔐 Credenziali
 scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
 creds_dict = dict(st.secrets["credentials"])
 if isinstance(creds_dict, str):
@@ -38,23 +43,28 @@ values = [pt, fantasy, concern, distress]
 labels = ["PT", "Fantasy", "Concern", "Distress"]
 colors = ["#3498db", "#9b59b6", "#e67e22", "#e84393"]
 
-# 🌀 Spirali animate
+# 🌀 Spirali animate con variazione più evidente
 fig = go.Figure()
-theta = np.linspace(0, 8 * np.pi, 1000)
+theta = np.linspace(0, 10 * np.pi, 1000)
 
 for i, val in enumerate(values):
-    intensity = np.clip(val / 5, 0.2, 1)
+    intensity = np.clip(val / 5, 0.3, 1.0)
     r = (i + 1) * 0.3
-    radius = r * (theta / max(theta)) * intensity * 3
+    radius = r * (theta / max(theta)) * intensity * 4.5  # amplificato
 
-    x = radius * np.cos(theta)
-    y = radius * np.sin(theta)
+    x = radius * np.cos(theta + i)
+    y = radius * np.sin(theta + i)
 
-    for j in range(0, len(theta), 5):
+    for j in range(0, len(theta) - 1, 6):
         fig.add_trace(go.Scatter(
             x=x[j:j+2], y=y[j:j+2],
             mode="lines",
-            line=dict(color=colors[i], width=2 + intensity * 3),
+            line=dict(
+                color=colors[i],
+                width=2 + intensity * 5,
+                dash="dash" if val < 3 else "solid"
+            ),
+            hoverinfo="none",
             showlegend=False
         ))
 
@@ -67,14 +77,11 @@ fig.update_layout(
     autosize=True,
 )
 
-# ⬇️ Salva come HTML temporaneo
+# 💾 Embed HTML in app
 html_str = pio.to_html(fig, include_plotlyjs='cdn')
+components.html(html_str, height=720, scrolling=False)
 
-# ⏬ Mostra il grafico in un iframe
-components.html(html_str, height=700, scrolling=False)
-
-st.caption("🌱 Il grafico si aggiorna dinamicamente con ogni nuova risposta. Le spirali riflettono le 4 dimensioni empatiche.")
-
+st.caption("🌱 Le spirali si aggiornano ogni 10 secondi. L'intensità, il colore e lo stile cambiano in base alle medie empatiche.")
 
 
 
