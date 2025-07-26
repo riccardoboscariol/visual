@@ -100,7 +100,7 @@ st.markdown("""
 Questa opera esplora l’empatia come dimensione attiva e relazionale della coscienza.  
 Andando oltre la semplice risonanza emotiva, propone una visione dell’empatia come capacità di percepire e modulare il proprio effetto sulla realtà.
 
-Le spirali si trasformano continuamente, leggendo i punteggi raccolti da decine di partecipanti.  
+Le spirali si trasformano continuamente, leggendo i punteggi raccolti dai partecipanti.  
 Il colore di ogni spirale viene ridefinito in tempo reale in base al predominio delle diverse qualità empatiche: fantasia, consapevolezza, preoccupazione o angoscia.
 """)
 
