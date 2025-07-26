@@ -15,9 +15,9 @@ st_autorefresh(interval=10 * 1000, key="auto_refresh")
 
 # 🔧 Configurazione pagina
 st.set_page_config(page_title="Specchio empatico", layout="wide")
-st.title("Specchio empatico")
+st.title("🌀 Specchio Empatico – Visualizzazione Generativa")
 
-# 🔐 Credenziali
+# 🔐 Autenticazione Google Sheets
 scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
 creds_dict = dict(st.secrets["credentials"])
 if isinstance(creds_dict, str):
@@ -34,7 +34,7 @@ if df.empty:
     st.warning("Nessuna risposta registrata.")
     st.stop()
 
-# 📊 Punteggi medi
+# 📊 Calcolo medie
 pt = df["PT"].mean()
 fantasy = df["Fantasy"].mean()
 concern = df["Empathic Concern"].mean()
@@ -43,37 +43,45 @@ distress = df["Personal Distress"].mean()
 values = [pt, fantasy, concern, distress]
 labels = ["PT", "Fantasy", "Concern", "Distress"]
 
-# 🎨 Colormap psichedelica (viridis, plasma, magma…)
+# 🎨 Colormap psichedelica
 colormaps = [cm.plasma, cm.magma, cm.inferno, cm.viridis]
 
+# 📊 Debug: mostra medie nella sidebar
+with st.sidebar:
+    st.subheader("📊 Medie attuali")
+    for name, val in zip(labels, values):
+        st.write(f"{name}: {val:.2f}")
+
+# 🎞️ Costruzione spirale animata
 fig = go.Figure()
 theta = np.linspace(0, 12 * np.pi, 1200)
 
 for i, (val, cmap) in enumerate(zip(values, colormaps)):
-    # Intensità
-    intensity = np.clip(val / 5, 0.2, 1.0)
+    # Intensità amplificata
+    intensity = np.clip((val - 1) / 4, 0, 1.0)
     r = (i + 1) * 0.25
-    radius = r * (theta / max(theta)) * intensity * 4.5
+    radius = r * (theta / max(theta)) * (1 + intensity * 3.5)
 
-    x = radius * np.cos(theta + i)
-    y = radius * np.sin(theta + i)
+    x = radius * np.cos(theta + i * np.pi / 2)
+    y = radius * np.sin(theta + i * np.pi / 2)
 
-    # Genera gradiente di colore
+    # Colore con alpha dinamico
     normalized = np.linspace(0, 1, len(x))
     rgba = cmap(normalized)
     rgba = (rgba * 255).astype(int)
 
-    for j in range(1, len(x), 4):
-        color = f"rgba({rgba[j][0]}, {rgba[j][1]}, {rgba[j][2]}, {0.3 + 0.6 * normalized[j]:.2f})"
+    for j in range(1, len(x), 3):
+        alpha = 0.2 + 0.8 * normalized[j] * intensity
+        color = f"rgba({rgba[j][0]}, {rgba[j][1]}, {rgba[j][2]}, {alpha:.2f})"
         fig.add_trace(go.Scatter(
             x=x[j-1:j+1], y=y[j-1:j+1],
             mode="lines",
-            line=dict(color=color, width=1.5 + intensity * 3),
+            line=dict(color=color, width=1 + intensity * 6),
             hoverinfo="none",
             showlegend=False
         ))
 
-# Layout nero spaziale
+# 🎥 Layout
 fig.update_layout(
     xaxis=dict(visible=False),
     yaxis=dict(visible=False),
@@ -83,29 +91,12 @@ fig.update_layout(
     autosize=True,
 )
 
-# Embed HTML (interattivo)
+# ⬇️ Embed HTML (interattivo)
 html_str = pio.to_html(fig, include_plotlyjs='cdn')
 components.html(html_str, height=720, scrolling=False)
 
-st.caption("🌀 Le spirali reagiscono ai punteggi cumulativi al test, con modifiche nelle geometrie, nei colori e nelle trasparenze. L’opera evolve ogni 10 secondi.")
-
-# 📘 Descrizione dell'opera
-st.markdown("---")
-st.markdown(
-    """
-    ### 🧭 *Empatia come consapevolezza dell’impatto*
-
-    > *“L’empatia non è solo sentire l’altro, ma riconoscere il proprio impatto sul mondo e sulla realtà condivisa. È un atto di presenza responsabile.”*
-
-    **Breve descrizione:**  
-    Questa opera esplora l’empatia come dimensione attiva e relazionale della coscienza.  
-    Andando oltre la semplice risonanza emotiva, propone una visione dell’empatia come capacità di percepire e modulare il proprio effetto sulla realtà.""",
-    unsafe_allow_html=True
-)
-
-
-
-
+# 📘 Descrizione finale
+st.caption("🌌 Le spirali reagiscono ai punteggi cumulativi: trasparenze, spessore e ampiezza si evolvono dinamicamente ogni 10 secondi.")
 
 
 
