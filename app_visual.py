@@ -13,11 +13,11 @@ from matplotlib import cm
 # 🔄 Refresh automatico ogni 10 secondi
 st_autorefresh(interval=10 * 1000, key="auto_refresh")
 
-# 🔧 Configurazione pagina
+# Configurazione Streamlit
 st.set_page_config(page_title="Specchio empatico", layout="wide")
-st.title("🌀 Specchio Empatico – Visualizzazione Generativa")
+st.title("🌀 Specchio empatico – visualizzazione dinamica")
 
-# 🔐 Autenticazione Google Sheets
+# 🔐 Credenziali Google Sheets
 scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
 creds_dict = dict(st.secrets["credentials"])
 if isinstance(creds_dict, str):
@@ -26,7 +26,7 @@ creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
 client = gspread.authorize(creds)
 sheet = client.open_by_key("16amhP4JqU5GsGg253F2WJn9rZQIpx1XsP3BHIwXq1EA").sheet1
 
-# 📥 Dati
+# 📥 Dati dal foglio
 records = sheet.get_all_records()
 df = pd.DataFrame(records)
 
@@ -34,7 +34,7 @@ if df.empty:
     st.warning("Nessuna risposta registrata.")
     st.stop()
 
-# 📊 Calcolo medie
+# Calcolo delle medie cumulative
 pt = df["PT"].mean()
 fantasy = df["Fantasy"].mean()
 concern = df["Empathic Concern"].mean()
@@ -42,44 +42,43 @@ distress = df["Personal Distress"].mean()
 
 values = [pt, fantasy, concern, distress]
 labels = ["PT", "Fantasy", "Concern", "Distress"]
-
-# 🎨 Colormap psichedelica
 colormaps = [cm.plasma, cm.magma, cm.inferno, cm.viridis]
 
-# 📊 Debug: mostra medie nella sidebar
-with st.sidebar:
-    st.subheader("📊 Medie attuali")
-    for name, val in zip(labels, values):
-        st.write(f"{name}: {val:.2f}")
-
-# 🎞️ Costruzione spirale animata
+# 📈 Figura
 fig = go.Figure()
-theta = np.linspace(0, 12 * np.pi, 1200)
+theta = np.linspace(0, 14 * np.pi, 1200)
+media_globale = np.mean(values)
+rotazione = 1 if media_globale > 3.2 else -1
 
 for i, (val, cmap) in enumerate(zip(values, colormaps)):
-    intensity = np.clip((val - 1) / 4, 0, 1.0)
-    r = (i + 1) * 0.25
-    radius = r * (theta / max(theta)) * (1 + intensity * 3.5)
+    intensity = np.clip(val / 5, 0.2, 1.2)
+    larghezza = 2 + 5 * intensity
+    opacita_base = 0.2 + 0.7 * intensity
 
-    x = radius * np.cos(theta + i * np.pi / 2)
-    y = radius * np.sin(theta + i * np.pi / 2)
+    r_base = (i + 1) * 0.25
+    radius = r_base * (theta / max(theta)) * intensity * 5
+
+    deformazione = 1 + 0.3 * np.sin(3 * theta + i)
+    radius *= deformazione
+
+    x = radius * np.cos(theta * rotazione + i)
+    y = radius * np.sin(theta * rotazione + i)
 
     normalized = np.linspace(0, 1, len(x))
     rgba = cmap(normalized)
     rgba = (rgba * 255).astype(int)
 
     for j in range(1, len(x), 3):
-        alpha = 0.2 + 0.8 * normalized[j] * intensity
-        color = f"rgba({rgba[j][0]}, {rgba[j][1]}, {rgba[j][2]}, {alpha:.2f})"
+        color = f"rgba({rgba[j][0]}, {rgba[j][1]}, {rgba[j][2]}, {opacita_base:.2f})"
         fig.add_trace(go.Scatter(
             x=x[j-1:j+1], y=y[j-1:j+1],
             mode="lines",
-            line=dict(color=color, width=1 + intensity * 6),
+            line=dict(color=color, width=larghezza),
             hoverinfo="none",
             showlegend=False
         ))
 
-# 🎥 Layout
+# Layout
 fig.update_layout(
     xaxis=dict(visible=False),
     yaxis=dict(visible=False),
@@ -89,26 +88,24 @@ fig.update_layout(
     autosize=True,
 )
 
-# ⬇️ Embed HTML (interattivo)
+# Mostra embed interattivo
 html_str = pio.to_html(fig, include_plotlyjs='cdn')
 components.html(html_str, height=720, scrolling=False)
 
-# 📘 Descrizione dell'opera
-st.caption("🌌 Le spirali reagiscono ai punteggi cumulativi: trasparenze, spessore e ampiezza si evolvono dinamicamente ogni 10 secondi.")
+# Caption e descrizione
+st.caption("🌱 Le spirali reagiscono ai punteggi cumulativi: si deformano, ruotano, si espandono. L’opera evolve ogni 10 secondi.")
 
 st.markdown("---")
-st.markdown(
-    """
-    ### 🧭 *Empatia come consapevolezza dell’impatto*
+st.markdown("""
+### 🧭 *Empatia come consapevolezza dell’impatto*
 
-    > *“L’empatia non è solo sentire l’altro, ma riconoscere il proprio impatto sul mondo e sulla realtà condivisa. È un atto di presenza responsabile.”*
+> *“L’empatia non è solo sentire l’altro, ma riconoscere il proprio impatto sul mondo e sulla realtà condivisa. È un atto di presenza responsabile.”*
 
-    **Breve descrizione:**  
-    Questa opera esplora l’empatia come dimensione attiva e relazionale della coscienza.  
-    Andando oltre la semplice risonanza emotiva, propone una visione dell’empatia come capacità di percepire e modulare il proprio effetto sulla realtà.
-    """,
-    unsafe_allow_html=True
-)
+**Breve descrizione:**  
+Questa opera esplora l’empatia come dimensione attiva e relazionale della coscienza.  
+Andando oltre la semplice risonanza emotiva, propone una visione dell’empatia come capacità di percepire e modulare il proprio effetto sulla realtà.
+""")
+
 
 
 
