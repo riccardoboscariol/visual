@@ -10,14 +10,14 @@ import streamlit.components.v1 as components
 from streamlit_autorefresh import st_autorefresh
 from matplotlib import cm
 
-# 🔁 Auto-refresh ogni 10 secondi
+# 🔄 Refresh automatico ogni 10 secondi
 st_autorefresh(interval=10 * 1000, key="auto_refresh")
 
-# 🌐 Config pagina
+# 🔧 Configurazione pagina
 st.set_page_config(page_title="Specchio empatico", layout="wide")
-st.title("🌀 Specchio empatico")
+st.title("Specchio empatico")
 
-# 🔐 Google Sheets Auth
+# 🔐 Credenziali Google Sheets
 scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
 creds_dict = dict(st.secrets["credentials"])
 if isinstance(creds_dict, str):
@@ -26,56 +26,62 @@ creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
 client = gspread.authorize(creds)
 sheet = client.open_by_key("16amhP4JqU5GsGg253F2WJn9rZQIpx1XsP3BHIwXq1EA").sheet1
 
-# 📥 Caricamento dati
-records = sheet.get_all_records()
-df = pd.DataFrame(records)
+# 📥 Carica dati SENZA cache
+df = pd.DataFrame(sheet.get_all_records())
+st.write("DEBUG – Numero righe lette da Google Sheets:", df.shape[0])
 
 if df.empty:
     st.warning("Nessuna risposta registrata.")
     st.stop()
 
-# 📊 Medie punteggi
+# 📊 Punteggi medi
 pt = df["PT"].mean()
 fantasy = df["Fantasy"].mean()
 concern = df["Empathic Concern"].mean()
 distress = df["Personal Distress"].mean()
 
-# 🔧 Esagerazione visiva: enfatizza differenze minime
-def exaggerate(val):
-    normalized = np.clip(val / 5, 0, 1)
-    return normalized ** 1.5  # <--- Modifica esagerata (aumenta contrasto)
+st.write("Valori medi letti:", pt, fantasy, concern, distress)
 
 values = [pt, fantasy, concern, distress]
-scaled_values = [exaggerate(v) for v in values]
 labels = ["PT", "Fantasy", "Concern", "Distress"]
+
+# 🎨 Colormap psichedelica
 colormaps = [cm.plasma, cm.magma, cm.inferno, cm.viridis]
 
-# 🎨 Disegno spirali
+# 🔁 Esagerazione visiva
+def exaggerate(val):
+    norm = np.clip(val / 5, 0, 1)
+    return np.clip((norm ** 2.5) * 3.5, 0.3, 4.0)  # amplifica differenze piccole
+
+# 🎥 Spirali
 fig = go.Figure()
 theta = np.linspace(0, 12 * np.pi, 1200)
 
-for i, (val, scale, cmap) in enumerate(zip(values, scaled_values, colormaps)):
-    r = (i + 1) * 0.25
-    radius = r * (theta / max(theta)) * scale * 5  # <--- visivamente più grande
+for i, (val, cmap) in enumerate(zip(values, colormaps)):
+    intensity = exaggerate(val)
+    r = (i + 1) * 0.3
+    radius = r * (theta / max(theta)) * intensity
 
     x = radius * np.cos(theta + i)
     y = radius * np.sin(theta + i)
 
+    # Gradiente di colore con trasparenza
     normalized = np.linspace(0, 1, len(x))
-    rgba = (cmap(normalized) * 255).astype(int)
+    rgba = cmap(normalized)
+    rgba = (rgba * 255).astype(int)
 
     for j in range(1, len(x), 4):
-        alpha = 0.2 + 0.6 * scale
-        color = f"rgba({rgba[j][0]}, {rgba[j][1]}, {rgba[j][2]}, {alpha:.2f})"
+        color = f"rgba({rgba[j][0]}, {rgba[j][1]}, {rgba[j][2]}, {0.3 + 0.6 * normalized[j]:.2f})"
         fig.add_trace(go.Scatter(
-            x=x[j-1:j+1], y=y[j-1:j+1],
+            x=x[j-1:j+1],
+            y=y[j-1:j+1],
             mode="lines",
-            line=dict(color=color, width=1 + scale * 4),
+            line=dict(color=color, width=1.5 + intensity),
             hoverinfo="none",
             showlegend=False
         ))
 
-# Layout nero spaziale
+# Layout
 fig.update_layout(
     xaxis=dict(visible=False),
     yaxis=dict(visible=False),
@@ -85,12 +91,13 @@ fig.update_layout(
     autosize=True,
 )
 
-# 📡 Embed HTML
+# HTML interattivo
 html_str = pio.to_html(fig, include_plotlyjs='cdn')
 components.html(html_str, height=720, scrolling=False)
 
-# 📘 Caption + descrizione
-st.caption("🔁 Le spirali reagiscono alle medie cumulative, amplificando graficamente anche minimi cambiamenti. L’opera si evolve ogni 10 secondi.")
+# 📘 Descrizione
+st.caption("🌀 Le spirali reagiscono ai punteggi cumulativi al test, con modifiche esagerate nella geometria e trasparenze. L’opera evolve ogni 10 secondi.")
+
 st.markdown("---")
 st.markdown(
     """
@@ -101,7 +108,8 @@ st.markdown(
     **Breve descrizione:**  
     Questa opera esplora l’empatia come dimensione attiva e relazionale della coscienza.  
     Andando oltre la semplice risonanza emotiva, propone una visione dell’empatia come capacità di percepire e modulare il proprio effetto sulla realtà.
-    """
+    """,
+    unsafe_allow_html=True
 )
 
 
