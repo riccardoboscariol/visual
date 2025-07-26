@@ -15,7 +15,7 @@ st_autorefresh(interval=10 * 1000, key="refresh")
 
 # 🌌 Configurazione
 st.set_page_config(page_title="Specchio Empatico", layout="wide")
-st.title("🔄 Specchio Empatico – Spirali Dinamiche")
+st.title("🔄 Specchio Empatico")
 
 # 🔐 Google Sheets
 scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
