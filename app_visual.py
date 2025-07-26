@@ -10,14 +10,14 @@ import streamlit.components.v1 as components
 from streamlit_autorefresh import st_autorefresh
 from matplotlib import cm
 
-# 🔄 Refresh automatico ogni 10 secondi
+# 🔁 Auto-refresh ogni 10 secondi
 st_autorefresh(interval=10 * 1000, key="auto_refresh")
 
-# Configurazione Streamlit
+# 🌐 Config pagina
 st.set_page_config(page_title="Specchio empatico", layout="wide")
-st.title("🌀 Specchio empatico – visualizzazione dinamica")
+st.title("🌀 Specchio empatico")
 
-# 🔐 Credenziali Google Sheets
+# 🔐 Google Sheets Auth
 scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
 creds_dict = dict(st.secrets["credentials"])
 if isinstance(creds_dict, str):
@@ -26,7 +26,7 @@ creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
 client = gspread.authorize(creds)
 sheet = client.open_by_key("16amhP4JqU5GsGg253F2WJn9rZQIpx1XsP3BHIwXq1EA").sheet1
 
-# 📥 Dati dal foglio
+# 📥 Caricamento dati
 records = sheet.get_all_records()
 df = pd.DataFrame(records)
 
@@ -34,51 +34,48 @@ if df.empty:
     st.warning("Nessuna risposta registrata.")
     st.stop()
 
-# Calcolo delle medie cumulative
+# 📊 Medie punteggi
 pt = df["PT"].mean()
 fantasy = df["Fantasy"].mean()
 concern = df["Empathic Concern"].mean()
 distress = df["Personal Distress"].mean()
 
+# 🔧 Esagerazione visiva: enfatizza differenze minime
+def exaggerate(val):
+    normalized = np.clip(val / 5, 0, 1)
+    return normalized ** 1.5  # <--- Modifica esagerata (aumenta contrasto)
+
 values = [pt, fantasy, concern, distress]
+scaled_values = [exaggerate(v) for v in values]
 labels = ["PT", "Fantasy", "Concern", "Distress"]
 colormaps = [cm.plasma, cm.magma, cm.inferno, cm.viridis]
 
-# 📈 Figura
+# 🎨 Disegno spirali
 fig = go.Figure()
-theta = np.linspace(0, 14 * np.pi, 1200)
-media_globale = np.mean(values)
-rotazione = 1 if media_globale > 3.2 else -1
+theta = np.linspace(0, 12 * np.pi, 1200)
 
-for i, (val, cmap) in enumerate(zip(values, colormaps)):
-    intensity = np.clip(val / 5, 0.2, 1.2)
-    larghezza = 2 + 5 * intensity
-    opacita_base = 0.2 + 0.7 * intensity
+for i, (val, scale, cmap) in enumerate(zip(values, scaled_values, colormaps)):
+    r = (i + 1) * 0.25
+    radius = r * (theta / max(theta)) * scale * 5  # <--- visivamente più grande
 
-    r_base = (i + 1) * 0.25
-    radius = r_base * (theta / max(theta)) * intensity * 5
-
-    deformazione = 1 + 0.3 * np.sin(3 * theta + i)
-    radius *= deformazione
-
-    x = radius * np.cos(theta * rotazione + i)
-    y = radius * np.sin(theta * rotazione + i)
+    x = radius * np.cos(theta + i)
+    y = radius * np.sin(theta + i)
 
     normalized = np.linspace(0, 1, len(x))
-    rgba = cmap(normalized)
-    rgba = (rgba * 255).astype(int)
+    rgba = (cmap(normalized) * 255).astype(int)
 
-    for j in range(1, len(x), 3):
-        color = f"rgba({rgba[j][0]}, {rgba[j][1]}, {rgba[j][2]}, {opacita_base:.2f})"
+    for j in range(1, len(x), 4):
+        alpha = 0.2 + 0.6 * scale
+        color = f"rgba({rgba[j][0]}, {rgba[j][1]}, {rgba[j][2]}, {alpha:.2f})"
         fig.add_trace(go.Scatter(
             x=x[j-1:j+1], y=y[j-1:j+1],
             mode="lines",
-            line=dict(color=color, width=larghezza),
+            line=dict(color=color, width=1 + scale * 4),
             hoverinfo="none",
             showlegend=False
         ))
 
-# Layout
+# Layout nero spaziale
 fig.update_layout(
     xaxis=dict(visible=False),
     yaxis=dict(visible=False),
@@ -88,23 +85,24 @@ fig.update_layout(
     autosize=True,
 )
 
-# Mostra embed interattivo
+# 📡 Embed HTML
 html_str = pio.to_html(fig, include_plotlyjs='cdn')
 components.html(html_str, height=720, scrolling=False)
 
-# Caption e descrizione
-st.caption("🌱 Le spirali reagiscono ai punteggi cumulativi: si deformano, ruotano, si espandono. L’opera evolve ogni 10 secondi.")
-
+# 📘 Caption + descrizione
+st.caption("🔁 Le spirali reagiscono alle medie cumulative, amplificando graficamente anche minimi cambiamenti. L’opera si evolve ogni 10 secondi.")
 st.markdown("---")
-st.markdown("""
-### 🧭 *Empatia come consapevolezza dell’impatto*
+st.markdown(
+    """
+    ### 🧭 *Empatia come consapevolezza dell’impatto*
 
-> *“L’empatia non è solo sentire l’altro, ma riconoscere il proprio impatto sul mondo e sulla realtà condivisa. È un atto di presenza responsabile.”*
+    > *“L’empatia non è solo sentire l’altro, ma riconoscere il proprio impatto sul mondo e sulla realtà condivisa. È un atto di presenza responsabile.”*
 
-**Breve descrizione:**  
-Questa opera esplora l’empatia come dimensione attiva e relazionale della coscienza.  
-Andando oltre la semplice risonanza emotiva, propone una visione dell’empatia come capacità di percepire e modulare il proprio effetto sulla realtà.
-""")
+    **Breve descrizione:**  
+    Questa opera esplora l’empatia come dimensione attiva e relazionale della coscienza.  
+    Andando oltre la semplice risonanza emotiva, propone una visione dell’empatia come capacità di percepire e modulare il proprio effetto sulla realtà.
+    """
+)
 
 
 
