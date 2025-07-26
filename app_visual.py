@@ -15,7 +15,7 @@ st_autorefresh(interval=10 * 1000, key="refresh")
 
 # Configurazione pagina
 st.set_page_config(page_title="Specchio empatico", layout="wide")
-st.title("🌀 Specchio Empatico – Versione Armoniosa")
+st.title("🌀 Specchio Empatico")
 
 # Credenziali
 scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
