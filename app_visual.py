@@ -17,7 +17,7 @@ st_autorefresh(interval=10 * 1000, key="auto_refresh")
 st.set_page_config(page_title="Specchio empatico", layout="wide")
 st.title("Specchio empatico")
 
-# 🔐 Credenziali Google Sheets
+# 🔐 Credenziali
 scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
 creds_dict = dict(st.secrets["credentials"])
 if isinstance(creds_dict, str):
@@ -26,62 +26,56 @@ creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
 client = gspread.authorize(creds)
 sheet = client.open_by_key("16amhP4JqU5GsGg253F2WJn9rZQIpx1XsP3BHIwXq1EA").sheet1
 
-# 📥 Carica dati SENZA cache
-df = pd.DataFrame(sheet.get_all_records())
-st.write("DEBUG – Numero righe lette da Google Sheets:", df.shape[0])
+# 📥 Dati
+records = sheet.get_all_records()
+df = pd.DataFrame(records)
 
 if df.empty:
     st.warning("Nessuna risposta registrata.")
     st.stop()
 
-# 📊 Punteggi medi
-pt = df["PT"].mean()
-fantasy = df["Fantasy"].mean()
-concern = df["Empathic Concern"].mean()
-distress = df["Personal Distress"].mean()
-
-st.write("Valori medi letti:", pt, fantasy, concern, distress)
+# 📊 Normalizzazione (se i valori sono somme, non medie)
+pt = df["PT"].mean() / 7
+fantasy = df["Fantasy"].mean() / 7
+concern = df["Empathic Concern"].mean() / 7
+distress = df["Personal Distress"].mean() / 7
 
 values = [pt, fantasy, concern, distress]
 labels = ["PT", "Fantasy", "Concern", "Distress"]
 
-# 🎨 Colormap psichedelica
+# 🎨 Colormap psichedelica (viridis, plasma, magma…)
 colormaps = [cm.plasma, cm.magma, cm.inferno, cm.viridis]
 
-# 🔁 Esagerazione visiva
-def exaggerate(val):
-    norm = np.clip(val / 5, 0, 1)
-    return np.clip((norm ** 2.5) * 3.5, 0.3, 4.0)  # amplifica differenze piccole
-
-# 🎥 Spirali
 fig = go.Figure()
 theta = np.linspace(0, 12 * np.pi, 1200)
 
 for i, (val, cmap) in enumerate(zip(values, colormaps)):
-    intensity = exaggerate(val)
-    r = (i + 1) * 0.3
-    radius = r * (theta / max(theta)) * intensity
+    # 🔥 Aumenta impatto visivo
+    exaggerated = (val - 1) * 1.8 + 0.5  # spinge di più le differenze
+    r = (i + 1) * 0.25
+    radius = r * (theta / max(theta)) * exaggerated * 5.5
 
     x = radius * np.cos(theta + i)
     y = radius * np.sin(theta + i)
 
-    # Gradiente di colore con trasparenza
+    # 🎨 Colori dinamici e trasparenze
     normalized = np.linspace(0, 1, len(x))
     rgba = cmap(normalized)
     rgba = (rgba * 255).astype(int)
 
     for j in range(1, len(x), 4):
-        color = f"rgba({rgba[j][0]}, {rgba[j][1]}, {rgba[j][2]}, {0.3 + 0.6 * normalized[j]:.2f})"
+        alpha = 0.3 + 0.6 * normalized[j] * exaggerated
+        alpha = min(alpha, 1.0)
+        color = f"rgba({rgba[j][0]}, {rgba[j][1]}, {rgba[j][2]}, {alpha:.2f})"
         fig.add_trace(go.Scatter(
-            x=x[j-1:j+1],
-            y=y[j-1:j+1],
+            x=x[j-1:j+1], y=y[j-1:j+1],
             mode="lines",
-            line=dict(color=color, width=1.5 + intensity),
+            line=dict(color=color, width=1.5 + exaggerated * 3),
             hoverinfo="none",
             showlegend=False
         ))
 
-# Layout
+# 🖤 Layout nero spaziale
 fig.update_layout(
     xaxis=dict(visible=False),
     yaxis=dict(visible=False),
@@ -91,13 +85,13 @@ fig.update_layout(
     autosize=True,
 )
 
-# HTML interattivo
+# Embed HTML
 html_str = pio.to_html(fig, include_plotlyjs='cdn')
 components.html(html_str, height=720, scrolling=False)
 
-# 📘 Descrizione
-st.caption("🌀 Le spirali reagiscono ai punteggi cumulativi al test, con modifiche esagerate nella geometria e trasparenze. L’opera evolve ogni 10 secondi.")
+st.caption("🌱 Le spirali reagiscono ai punteggi cumulativi al test, con modifiche nelle geometrie, nei colori e nelle trasparenze. L’opera evolve ogni 10 secondi.")
 
+# 📘 Descrizione dell'opera
 st.markdown("---")
 st.markdown(
     """
@@ -111,7 +105,6 @@ st.markdown(
     """,
     unsafe_allow_html=True
 )
-
 
 
 
