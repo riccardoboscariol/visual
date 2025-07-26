@@ -98,8 +98,29 @@ fig.update_layout(
 html_str = pio.to_html(fig, include_plotlyjs='cdn')
 components.html(html_str, height=720, scrolling=False)
 
-# Caption
+# Caption interattiva
 st.caption("🎨 Le spirali cambiano posizione e colore in base all'importanza relativa (media) delle 4 dimensioni empatiche.")
+
+# 📘 Descrizione dell'opera
+st.markdown("---")
+st.markdown(
+    """
+    ### 🧭 *Empatia come consapevolezza dell’impatto*
+
+    > *“L’empatia non è solo sentire l’altro, ma riconoscere il proprio impatto sul mondo e sulla realtà condivisa. È un atto di presenza responsabile.”*
+
+    **Breve descrizione:**  
+    Questa opera esplora l’empatia come dimensione attiva e relazionale della coscienza.  
+    Andando oltre la semplice risonanza emotiva, propone una visione dell’empatia come capacità di percepire e modulare il proprio effetto sulla realtà.
+
+    **Specchio Empatico** si presenta come una spirale in evoluzione, alimentata dalle risposte dei partecipanti.  
+    Le quattro componenti empatiche (Perspective Taking, Fantasy, Empathic Concern, Personal Distress) si intrecciano visivamente  
+    e cambiano colore, posizione e forma a seconda del loro peso relativo.  
+    L’opera si aggiorna in tempo reale, riflettendo la qualità empatica del collettivo in continua trasformazione.
+    """,
+    unsafe_allow_html=True
+)
+
 
 
 
