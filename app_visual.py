@@ -57,7 +57,6 @@ fig = go.Figure()
 theta = np.linspace(0, 12 * np.pi, 1200)
 
 for i, (val, cmap) in enumerate(zip(values, colormaps)):
-    # Intensità amplificata
     intensity = np.clip((val - 1) / 4, 0, 1.0)
     r = (i + 1) * 0.25
     radius = r * (theta / max(theta)) * (1 + intensity * 3.5)
@@ -65,7 +64,6 @@ for i, (val, cmap) in enumerate(zip(values, colormaps)):
     x = radius * np.cos(theta + i * np.pi / 2)
     y = radius * np.sin(theta + i * np.pi / 2)
 
-    # Colore con alpha dinamico
     normalized = np.linspace(0, 1, len(x))
     rgba = cmap(normalized)
     rgba = (rgba * 255).astype(int)
@@ -95,8 +93,23 @@ fig.update_layout(
 html_str = pio.to_html(fig, include_plotlyjs='cdn')
 components.html(html_str, height=720, scrolling=False)
 
-# 📘 Descrizione finale
+# 📘 Descrizione dell'opera
 st.caption("🌌 Le spirali reagiscono ai punteggi cumulativi: trasparenze, spessore e ampiezza si evolvono dinamicamente ogni 10 secondi.")
+
+st.markdown("---")
+st.markdown(
+    """
+    ### 🧭 *Empatia come consapevolezza dell’impatto*
+
+    > *“L’empatia non è solo sentire l’altro, ma riconoscere il proprio impatto sul mondo e sulla realtà condivisa. È un atto di presenza responsabile.”*
+
+    **Breve descrizione:**  
+    Questa opera esplora l’empatia come dimensione attiva e relazionale della coscienza.  
+    Andando oltre la semplice risonanza emotiva, propone una visione dell’empatia come capacità di percepire e modulare il proprio effetto sulla realtà.
+    """,
+    unsafe_allow_html=True
+)
+
 
 
 
