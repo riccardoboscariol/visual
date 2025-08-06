@@ -10,13 +10,13 @@ import streamlit.components.v1 as components
 from streamlit_autorefresh import st_autorefresh
 import time
 
-# 🔄 Ricarica solo ogni 10s
+# 🔄 Auto-refresh ogni 10 secondi (solo 1 volta per ciclo)
 st_autorefresh(interval=10 * 1000, limit=1, key="auto-refresh")
 
 # 🔧 Config layout
 st.set_page_config(page_title="Specchio empatico", layout="wide")
 
-# 🔧 Rimuovi padding e margini
+# 🔧 Rimuovi padding e imposta full screen
 st.markdown("""
     <style>
     html, body, [class*="css"] {
@@ -25,6 +25,7 @@ st.markdown("""
         height: 100%;
         width: 100%;
         background-color: black;
+        overflow: hidden;
     }
     .block-container {
         padding: 0 !important;
@@ -56,12 +57,12 @@ if df.empty:
 # 🎨 Palette colori
 palette = ["#e84393", "#e67e22", "#3498db", "#9b59b6"]
 
-# ⏱️ Fase "respiro" (usa tempo per variare)
+# ⏱️ Calcola fase "respiro"
 timestamp = time.time()
-time_offset = (timestamp % 10) / 10  # valore da 0 a 1
-breath_scale = 1 + 0.08 * np.sin(2 * np.pi * time_offset)  # effetto respiro
+time_offset = (timestamp % 10) / 10  # da 0 a 1
+breath_scale = 1 + 0.08 * np.sin(2 * np.pi * time_offset)  # respiro
 
-# 🌀 Spirali con inclinazione alternata + respiro
+# 🌀 Spirali con respiro e inclinazione alternata
 fig = go.Figure()
 theta = np.linspace(0, 12 * np.pi, 1200)
 
@@ -74,8 +75,8 @@ for idx, row in df.iterrows():
 
     x = radius * np.cos(theta + idx)
     y = radius * np.sin(theta + idx)
-    
-    # Inclinazione alternata
+
+    # Alterna inclinazione: destra ↔ sinistra
     if idx % 2 == 0:
         y_proj = y * 0.5 + x * 0.2
     else:
@@ -93,7 +94,7 @@ for idx, row in df.iterrows():
             showlegend=False
         ))
 
-# ⚙️ Layout
+# ⚙️ Layout a schermo intero
 fig.update_layout(
     xaxis=dict(visible=False),
     yaxis=dict(visible=False),
@@ -101,16 +102,16 @@ fig.update_layout(
     plot_bgcolor='black',
     paper_bgcolor='black',
     autosize=True,
-    height=700,
-    width=1400  # leggermente ridotto per proiezione
+    height=1000,
+    width=2000  # imposta molto largo, ma verrà contenuto a fullscreen
 )
 
-# 🔳 Visualizzazione grafico
+# 🔳 Visualizzazione a schermo intero
 html_str = pio.to_html(fig, include_plotlyjs='cdn', full_html=False, config={"displayModeBar": False})
-components.html(html_str, height=850, scrolling=False)
+components.html(html_str, height=1000, scrolling=False)
 
 # ℹ️ Caption
-st.caption("🎨 Le spirali respirano ogni 10 secondi, in base ai dati empatici individuali. Ogni partecipante genera un vortice inclinato, in espansione e contrazione.")
+st.caption("🎨 Le spirali respirano ogni 10 secondi, con inclinazione alternata. Ogni partecipante genera un vortice unico e dinamico.")
 
 # 📘 Descrizione dell’opera
 st.markdown("---")
