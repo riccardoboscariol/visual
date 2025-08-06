@@ -9,13 +9,13 @@ import plotly.io as pio
 import streamlit.components.v1 as components
 from streamlit_autorefresh import st_autorefresh
 
-# 🔄 Auto-refresh ogni 10s
+# 🔄 Auto-refresh ogni 10 secondi
 st_autorefresh(interval=10 * 1000, key="refresh")
 
-# 🔧 Config layout
+# 🔧 Config layout Streamlit
 st.set_page_config(page_title="Specchio empatico", layout="wide")
 
-# 🔧 Rimuovi padding Streamlit
+# 🔧 Rimuovi padding e margini
 st.markdown("""
     <style>
     html, body, [class*="css"] {
@@ -27,6 +27,10 @@ st.markdown("""
     }
     .block-container {
         padding: 0 !important;
+    }
+    iframe {
+        height: 100vh !important;
+        width: 100vw !important;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -48,27 +52,30 @@ if df.empty:
     st.warning("Nessuna risposta ancora.")
     st.stop()
 
-# 🎨 Colori per i partecipanti
+# 🎨 Palette colori
 palette = ["#e84393", "#e67e22", "#3498db", "#9b59b6"]
 
-# 🌀 Spirali 2D concentriche
+# 🌀 Spirali "inclinate" simulando profondità
 fig = go.Figure()
 theta = np.linspace(0, 12 * np.pi, 1200)
 
 for idx, row in df.iterrows():
     media = np.mean([row["PT"], row["Fantasy"], row["Empathic Concern"], row["Personal Distress"]])
     intensity = np.clip(media / 5, 0.2, 1.0)
-    r = 0.3 + idx * 0.1
+    r = 0.3 + idx * 0.08
     radius = r * (theta / max(theta)) * intensity * 4.5
     color = palette[idx % len(palette)]
 
+    # 💡 Simula inclinazione: proiezione su "piano obliquo"
     x = radius * np.cos(theta + idx)
     y = radius * np.sin(theta + idx)
+    y_proj = y * 0.5 + x * 0.2  # inclinazione sul "piano z"
 
     for j in range(1, len(x), 4):
         alpha = 0.2 + 0.7 * (j / len(x))
         fig.add_trace(go.Scatter(
-            x=x[j-1:j+1], y=y[j-1:j+1],
+            x=x[j-1:j+1],
+            y=y_proj[j-1:j+1],
             mode="lines",
             line=dict(color=color, width=1.5 + intensity * 3),
             opacity=alpha,
@@ -76,7 +83,7 @@ for idx, row in df.iterrows():
             showlegend=False
         ))
 
-# ⚙️ Layout grafico
+# ⚙️ Layout effetto cinema panoramico
 fig.update_layout(
     xaxis=dict(visible=False),
     yaxis=dict(visible=False),
@@ -84,14 +91,16 @@ fig.update_layout(
     plot_bgcolor='black',
     paper_bgcolor='black',
     autosize=True,
+    height=700,
+    width=1600
 )
 
-# 🔳 Visualizzazione schermo intero
+# 🔳 Visualizzazione a tutto schermo
 html_str = pio.to_html(fig, include_plotlyjs='cdn', full_html=False, config={"displayModeBar": False})
-components.html(html_str, height=1000, scrolling=False)
+components.html(html_str, height=850, scrolling=False)
 
 # ℹ️ Caption
-st.caption("🎨 Le spirali si trasformano ogni 10 secondi. Ogni spirale rappresenta un partecipante, e il colore riflette la forza delle sue qualità empatiche.")
+st.caption("🎨 Le spirali inclinate si rigenerano ogni 10 secondi. Ogni partecipante genera un vortice unico, proiettato nello spazio.")
 
 # 📘 Descrizione dell’opera
 st.markdown("---")
@@ -102,10 +111,8 @@ st.markdown("""
 
 **Breve descrizione:**  
 Questa opera esplora l’empatia come dimensione attiva e relazionale della coscienza.  
-Andando oltre la semplice risonanza emotiva, propone una visione dell’empatia come capacità di percepire e modulare il proprio effetto sulla realtà.
-
-Le spirali si trasformano continuamente, leggendo i punteggi raccolti dai partecipanti.  
-Ogni spirale rappresenta un individuo, e il colore riflette la forza relativa delle diverse qualità empatiche: fantasia, consapevolezza, preoccupazione o angoscia.
+Ogni spirale si inclina come se emergesse da uno spazio condiviso.  
+Il colore e la forma sono tratti dalle qualità empatiche individuali: fantasia, consapevolezza, preoccupazione, angoscia.
 """)
 
 
