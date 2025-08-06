@@ -55,7 +55,7 @@ if df.empty:
 # 🎨 Palette colori
 palette = ["#e84393", "#e67e22", "#3498db", "#9b59b6"]
 
-# 🌀 Spirali "inclinate" simulando profondità
+# 🌀 Spirali "inclinate" con alternanza
 fig = go.Figure()
 theta = np.linspace(0, 12 * np.pi, 1200)
 
@@ -66,10 +66,13 @@ for idx, row in df.iterrows():
     radius = r * (theta / max(theta)) * intensity * 4.5
     color = palette[idx % len(palette)]
 
-    # 💡 Simula inclinazione: proiezione su "piano obliquo"
+    # Spirale inclinata alternata
     x = radius * np.cos(theta + idx)
     y = radius * np.sin(theta + idx)
-    y_proj = y * 0.5 + x * 0.2  # inclinazione sul "piano z"
+    if idx % 2 == 0:
+        y_proj = y * 0.5 + x * 0.2  # inclinazione a destra
+    else:
+        y_proj = y * 0.5 - x * 0.2  # inclinazione a sinistra
 
     for j in range(1, len(x), 4):
         alpha = 0.2 + 0.7 * (j / len(x))
@@ -83,7 +86,7 @@ for idx, row in df.iterrows():
             showlegend=False
         ))
 
-# ⚙️ Layout effetto cinema panoramico
+# ⚙️ Layout grafico
 fig.update_layout(
     xaxis=dict(visible=False),
     yaxis=dict(visible=False),
@@ -95,12 +98,12 @@ fig.update_layout(
     width=1600
 )
 
-# 🔳 Visualizzazione a tutto schermo
+# 🔳 Visualizzazione a schermo pieno
 html_str = pio.to_html(fig, include_plotlyjs='cdn', full_html=False, config={"displayModeBar": False})
 components.html(html_str, height=850, scrolling=False)
 
 # ℹ️ Caption
-st.caption("🎨 Le spirali inclinate si rigenerano ogni 10 secondi. Ogni partecipante genera un vortice unico, proiettato nello spazio.")
+st.caption("🎨 Le spirali si rigenerano ogni 10 secondi. Ogni partecipante genera un vortice inclinato, alternato nello spazio visivo.")
 
 # 📘 Descrizione dell’opera
 st.markdown("---")
@@ -111,8 +114,10 @@ st.markdown("""
 
 **Breve descrizione:**  
 Questa opera esplora l’empatia come dimensione attiva e relazionale della coscienza.  
-Ogni spirale si inclina come se emergesse da uno spazio condiviso.  
-Il colore e la forma sono tratti dalle qualità empatiche individuali: fantasia, consapevolezza, preoccupazione, angoscia.
+Andando oltre la semplice risonanza emotiva, propone una visione dell’empatia come capacità di percepire e modulare il proprio effetto sulla realtà.
+
+Ogni spirale rappresenta un individuo.  
+La loro inclinazione alternata crea un campo energetico condiviso, dove le qualità empatiche si dispongono in armonia dinamica.
 """)
 
 
