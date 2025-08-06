@@ -7,7 +7,11 @@ import numpy as np
 import json
 import plotly.io as pio
 import streamlit.components.v1 as components
+from streamlit_autorefresh import st_autorefresh
 import time
+
+# 🔁 Auto-refresh continuo ogni 5 secondi
+st_autorefresh(interval=5000, key="refresh")
 
 # 🔧 Configurazione Streamlit
 st.set_page_config(page_title="Specchio empatico", layout="wide")
@@ -33,9 +37,6 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# 🔁 Verifica ogni 5 secondi
-time.sleep(5)
-
 # 🔐 Autenticazione Google Sheets
 scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
 creds_dict = dict(st.secrets["credentials"])
@@ -53,27 +54,23 @@ if df.empty:
     st.warning("Nessuna risposta ancora.")
     st.stop()
 
-# 🧠 Controllo nuovo numero righe
-if "last_row_count" not in st.session_state:
-    st.session_state.last_row_count = len(df)
-
+# 🧠 Controllo variazione righe
 current_row_count = len(df)
+if "last_row_count" not in st.session_state:
+    st.session_state.last_row_count = 0
 
-if current_row_count == st.session_state.last_row_count:
-    st.stop()  # Nessun cambiamento, non rigenerare
-
-# 🔄 Aggiorna numero righe salvato
+data_changed = current_row_count != st.session_state.last_row_count
 st.session_state.last_row_count = current_row_count
 
-# 🎨 Palette colori
+# 🎨 Palette
 palette = ["#e84393", "#e67e22", "#3498db", "#9b59b6"]
 
-# ⏱️ Calcola fase "respiro"
+# ⏱️ Effetto respiro
 timestamp = time.time()
 time_offset = (timestamp % 10) / 10
 breath_scale = 1 + 0.08 * np.sin(2 * np.pi * time_offset)
 
-# 🌀 Crea spirali con effetto respiro e inclinazione alternata
+# 🌀 Spirali
 fig = go.Figure()
 theta = np.linspace(0, 12 * np.pi, 1200)
 
@@ -87,7 +84,6 @@ for idx, row in df.iterrows():
     x = radius * np.cos(theta + idx)
     y = radius * np.sin(theta + idx)
 
-    # Inclinazione alternata
     if idx % 2 == 0:
         y_proj = y * 0.5 + x * 0.2
     else:
@@ -105,7 +101,7 @@ for idx, row in df.iterrows():
             showlegend=False
         ))
 
-# ⚙️ Layout grafico fullscreen
+# ⚙️ Layout
 fig.update_layout(
     xaxis=dict(visible=False),
     yaxis=dict(visible=False),
@@ -117,12 +113,12 @@ fig.update_layout(
     width=2000
 )
 
-# 🔳 Mostra il grafico
+# 🔳 Mostra grafico
 html_str = pio.to_html(fig, include_plotlyjs='cdn', full_html=False, config={"displayModeBar": False})
 components.html(html_str, height=1000, scrolling=False)
 
 # ℹ️ Caption
-st.caption("🎨 Le spirali respirano con inclinazioni alternate. L'opera si aggiorna solo quando nuove risposte vengono aggiunte.")
+st.caption("🎨 Le spirali si rigenerano solo quando nuovi dati vengono rilevati. Effetto 'respiro' sincronizzato.")
 
 # 📘 Descrizione
 st.markdown("---")
@@ -132,10 +128,10 @@ st.markdown("""
 > *“L’empatia non è solo sentire l’altro, ma riconoscere il proprio impatto sul mondo e sulla realtà condivisa. È un atto di presenza responsabile.”*
 
 **Breve descrizione:**  
-Questa opera esplora l’empatia come dimensione attiva e relazionale della coscienza.  
 Ogni spirale rappresenta un individuo.  
-Le inclinazioni alternate e il respiro collettivo generano un campo visivo organico, come un organismo in ascolto continuo.
+L'inclinazione alternata e il respiro collettivo creano un'opera viva, che evolve al ritmo delle risposte.
 """)
+
 
 
 
