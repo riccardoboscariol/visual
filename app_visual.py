@@ -10,8 +10,8 @@ import streamlit.components.v1 as components
 from streamlit_autorefresh import st_autorefresh
 import time
 
-# 🔄 Auto-refresh ogni 10 secondi (solo 1 volta per ciclo)
-st_autorefresh(interval=10 * 1000, limit=1, key="auto-refresh")
+# 🔄 Auto-refresh continuo ogni 10 secondi
+st_autorefresh(interval=10 * 1000, key="auto-refresh")
 
 # 🔧 Config layout
 st.set_page_config(page_title="Specchio empatico", layout="wide")
@@ -103,7 +103,7 @@ fig.update_layout(
     paper_bgcolor='black',
     autosize=True,
     height=1000,
-    width=2000  # imposta molto largo, ma verrà contenuto a fullscreen
+    width=2000
 )
 
 # 🔳 Visualizzazione a schermo intero
@@ -125,6 +125,7 @@ Questa opera esplora l’empatia come dimensione attiva e relazionale della cosc
 Ogni spirale rappresenta un individuo.  
 Le loro inclinazioni alternate e il respiro collettivo creano un campo visivo in movimento, come un organismo fatto di connessioni empatiche vive.
 """)
+
 
 
 
