@@ -8,11 +8,12 @@ import json
 import plotly.io as pio
 import streamlit.components.v1 as components
 from streamlit_autorefresh import st_autorefresh
+import time
 
-# 🔄 Auto-refresh ogni 10 secondi
-st_autorefresh(interval=10 * 1000, key="refresh")
+# 🔄 Ricarica solo ogni 10s
+st_autorefresh(interval=10 * 1000, limit=1, key="auto-refresh")
 
-# 🔧 Config layout Streamlit
+# 🔧 Config layout
 st.set_page_config(page_title="Specchio empatico", layout="wide")
 
 # 🔧 Rimuovi padding e margini
@@ -55,7 +56,12 @@ if df.empty:
 # 🎨 Palette colori
 palette = ["#e84393", "#e67e22", "#3498db", "#9b59b6"]
 
-# 🌀 Spirali "inclinate" con alternanza
+# ⏱️ Fase "respiro" (usa tempo per variare)
+timestamp = time.time()
+time_offset = (timestamp % 10) / 10  # valore da 0 a 1
+breath_scale = 1 + 0.08 * np.sin(2 * np.pi * time_offset)  # effetto respiro
+
+# 🌀 Spirali con inclinazione alternata + respiro
 fig = go.Figure()
 theta = np.linspace(0, 12 * np.pi, 1200)
 
@@ -63,16 +69,17 @@ for idx, row in df.iterrows():
     media = np.mean([row["PT"], row["Fantasy"], row["Empathic Concern"], row["Personal Distress"]])
     intensity = np.clip(media / 5, 0.2, 1.0)
     r = 0.3 + idx * 0.08
-    radius = r * (theta / max(theta)) * intensity * 4.5
+    radius = r * (theta / max(theta)) * intensity * 4.5 * breath_scale
     color = palette[idx % len(palette)]
 
-    # Spirale inclinata alternata
     x = radius * np.cos(theta + idx)
     y = radius * np.sin(theta + idx)
+    
+    # Inclinazione alternata
     if idx % 2 == 0:
-        y_proj = y * 0.5 + x * 0.2  # inclinazione a destra
+        y_proj = y * 0.5 + x * 0.2
     else:
-        y_proj = y * 0.5 - x * 0.2  # inclinazione a sinistra
+        y_proj = y * 0.5 - x * 0.2
 
     for j in range(1, len(x), 4):
         alpha = 0.2 + 0.7 * (j / len(x))
@@ -86,7 +93,7 @@ for idx, row in df.iterrows():
             showlegend=False
         ))
 
-# ⚙️ Layout grafico
+# ⚙️ Layout
 fig.update_layout(
     xaxis=dict(visible=False),
     yaxis=dict(visible=False),
@@ -95,15 +102,15 @@ fig.update_layout(
     paper_bgcolor='black',
     autosize=True,
     height=700,
-    width=1600
+    width=1400  # leggermente ridotto per proiezione
 )
 
-# 🔳 Visualizzazione a schermo pieno
+# 🔳 Visualizzazione grafico
 html_str = pio.to_html(fig, include_plotlyjs='cdn', full_html=False, config={"displayModeBar": False})
 components.html(html_str, height=850, scrolling=False)
 
 # ℹ️ Caption
-st.caption("🎨 Le spirali si rigenerano ogni 10 secondi. Ogni partecipante genera un vortice inclinato, alternato nello spazio visivo.")
+st.caption("🎨 Le spirali respirano ogni 10 secondi, in base ai dati empatici individuali. Ogni partecipante genera un vortice inclinato, in espansione e contrazione.")
 
 # 📘 Descrizione dell’opera
 st.markdown("---")
@@ -114,11 +121,10 @@ st.markdown("""
 
 **Breve descrizione:**  
 Questa opera esplora l’empatia come dimensione attiva e relazionale della coscienza.  
-Andando oltre la semplice risonanza emotiva, propone una visione dell’empatia come capacità di percepire e modulare il proprio effetto sulla realtà.
-
 Ogni spirale rappresenta un individuo.  
-La loro inclinazione alternata crea un campo energetico condiviso, dove le qualità empatiche si dispongono in armonia dinamica.
+Le loro inclinazioni alternate e il respiro collettivo creano un campo visivo in movimento, come un organismo fatto di connessioni empatiche vive.
 """)
+
 
 
 
