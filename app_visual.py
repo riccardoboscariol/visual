@@ -89,7 +89,7 @@ fig.update_layout(
 # 🔳 Visualizzazione interattiva
 fullscreen_html = f"""
 <div style="width:100vw; height:90vh; position:relative; overflow:hidden;">
-    {pio.to_html(fig, include_plotlyjs='cdn', full_html=False, config={{"displayModeBar": False}})}
+    {pio.to_html(fig, include_plotlyjs='cdn', full_html=False, config={"displayModeBar": False})}
 </div>
 """
 components.html(fullscreen_html, height=720, scrolling=False)
@@ -111,6 +111,7 @@ Andando oltre la semplice risonanza emotiva, propone una visione dell’empatia 
 Le spirali si trasformano continuamente, leggendo i punteggi raccolti dai partecipanti.  
 Ogni spirale rappresenta un individuo, e il colore riflette la forza relativa delle diverse qualità empatiche: fantasia, consapevolezza, preoccupazione o angoscia.
 """)
+
 
 
 
