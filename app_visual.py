@@ -34,43 +34,40 @@ if df.empty:
     st.warning("Nessuna risposta ancora.")
     st.stop()
 
-# 📊 Calcolo delle medie
-medie = {
-    "PT": df["PT"].mean(),
-    "Fantasy": df["Fantasy"].mean(),
-    "Empathic Concern": df["Empathic Concern"].mean(),
-    "Personal Distress": df["Personal Distress"].mean()
-}
-
-# 🎨 Colori in ordine di "importanza" (dalla media più alta alla più bassa)
-palette = ["#e84393", "#e67e22", "#3498db", "#9b59b6"]  # fucsia, arancio, azzurro, viola
-
-# 🔢 Ordina dimensioni per media (dalla più alta)
-dimensioni_ordinate = sorted(medie.items(), key=lambda x: x[1], reverse=True)
-
-# 🌀 Genera spirali
+# 🌀 Genera spirali per ogni partecipante
 fig = go.Figure()
 theta = np.linspace(0, 12 * np.pi, 1200)
 
-for i, (nome, media) in enumerate(dimensioni_ordinate):
-    color = palette[i]
-    intensity = np.clip(media / 5, 0.2, 1.0)
-    r = (i + 1) * 0.25
-    radius = r * (theta / max(theta)) * intensity * 4.5
+# Colori per le dimensioni, usati ciclicamente per ogni partecipante
+dimensioni = ["PT", "Fantasy", "Empathic Concern", "Personal Distress"]
+color_map = {
+    "PT": "#e84393",               # fucsia
+    "Fantasy": "#e67e22",          # arancio
+    "Empathic Concern": "#3498db", # azzurro
+    "Personal Distress": "#9b59b6" # viola
+}
 
-    x = radius * np.cos(theta + i)
-    y = radius * np.sin(theta + i)
+for idx, row in df.iterrows():
+    for i, dim in enumerate(dimensioni):
+        valore = row[dim]
+        color = color_map[dim]
+        intensity = np.clip(valore / 5, 0.2, 1.0)
+        r = (i + 1) * 0.25 + idx * 0.03  # Distanza progressiva per ogni spirale/partecipante
+        radius = r * (theta / max(theta)) * intensity * 4.5
 
-    for j in range(1, len(x), 4):
-        alpha = 0.2 + 0.7 * (j / len(x))
-        fig.add_trace(go.Scatter(
-            x=x[j-1:j+1], y=y[j-1:j+1],
-            mode="lines",
-            line=dict(color=color, width=1.5 + intensity * 3),
-            opacity=alpha,
-            hoverinfo="none",
-            showlegend=False
-        ))
+        x = radius * np.cos(theta + i + idx)
+        y = radius * np.sin(theta + i + idx)
+
+        for j in range(1, len(x), 4):
+            alpha = 0.2 + 0.7 * (j / len(x))
+            fig.add_trace(go.Scatter(
+                x=x[j-1:j+1], y=y[j-1:j+1],
+                mode="lines",
+                line=dict(color=color, width=1.2 + intensity * 2.5),
+                opacity=alpha,
+                hoverinfo="skip",
+                showlegend=False
+            ))
 
 # ⚙️ Layout grafico
 fig.update_layout(
@@ -87,7 +84,7 @@ html_str = pio.to_html(fig, include_plotlyjs='cdn')
 components.html(html_str, height=700, scrolling=False)
 
 # ℹ️ Caption
-st.caption("🎨 Le spirali si trasformano ogni 10 secondi, in base alle risposte cumulative. Ogni colore riflette la forza relativa delle dimensioni empatiche.")
+st.caption("🎨 Le spirali si trasformano ogni 10 secondi, in base alle risposte dei singoli partecipanti. Ogni spirale riflette le qualità empatiche individuali: fantasia, consapevolezza, preoccupazione o angoscia.")
 
 # 📘 Descrizione dell’opera
 st.markdown("---")
@@ -101,7 +98,7 @@ Questa opera esplora l’empatia come dimensione attiva e relazionale della cosc
 Andando oltre la semplice risonanza emotiva, propone una visione dell’empatia come capacità di percepire e modulare il proprio effetto sulla realtà.
 
 Le spirali si trasformano continuamente, leggendo i punteggi raccolti dai partecipanti.  
-Il colore di ogni spirale viene ridefinito in tempo reale in base al predominio delle diverse qualità empatiche: fantasia, consapevolezza, preoccupazione o angoscia.
+Ogni spirale rappresenta un individuo, e il colore riflette la forza relativa delle diverse qualità empatiche: fantasia, consapevolezza, preoccupazione o angoscia.
 """)
 
 
