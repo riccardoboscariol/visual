@@ -9,16 +9,16 @@ import plotly.io as pio
 import streamlit.components.v1 as components
 from streamlit_autorefresh import st_autorefresh
 
-# 🔄 Aggiornamento automatico ogni 10 secondi
+# 🔄 Auto-refresh ogni 10s
 st_autorefresh(interval=10 * 1000, key="refresh")
 
-# 🔧 Configurazione Streamlit
+# 🔧 Config layout
 st.set_page_config(page_title="Specchio empatico", layout="wide")
 
-# 🔧 Rimuove padding e margini
+# 🔧 Rimuovi padding Streamlit
 st.markdown("""
     <style>
-    html, body, [class*="css"]  {
+    html, body, [class*="css"] {
         margin: 0;
         padding: 0;
         height: 100%;
@@ -48,56 +48,50 @@ if df.empty:
     st.warning("Nessuna risposta ancora.")
     st.stop()
 
-# 🎨 Palette colori
+# 🎨 Colori per i partecipanti
 palette = ["#e84393", "#e67e22", "#3498db", "#9b59b6"]
 
-# 🌀 Genera spirali 3D per ogni partecipante
+# 🌀 Spirali 2D concentriche
 fig = go.Figure()
-theta = np.linspace(0, 8 * np.pi, 800)
+theta = np.linspace(0, 12 * np.pi, 1200)
 
 for idx, row in df.iterrows():
     media = np.mean([row["PT"], row["Fantasy"], row["Empathic Concern"], row["Personal Distress"]])
-    color = palette[idx % len(palette)]
     intensity = np.clip(media / 5, 0.2, 1.0)
+    r = 0.3 + idx * 0.1
+    radius = r * (theta / max(theta)) * intensity * 4.5
+    color = palette[idx % len(palette)]
 
-    r = 1 + idx * 0.2  # distanza progressiva
-    x = r * np.cos(theta + idx)
-    y = r * np.sin(theta + idx)
-    z = theta * intensity * 0.5  # spirale lungo z
+    x = radius * np.cos(theta + idx)
+    y = radius * np.sin(theta + idx)
 
-    fig.add_trace(go.Scatter3d(
-        x=x, y=y, z=z,
-        mode='lines',
-        line=dict(color=color, width=2 + intensity * 3),
-        opacity=0.7,
-        hoverinfo='skip',
-        showlegend=False
-    ))
+    for j in range(1, len(x), 4):
+        alpha = 0.2 + 0.7 * (j / len(x))
+        fig.add_trace(go.Scatter(
+            x=x[j-1:j+1], y=y[j-1:j+1],
+            mode="lines",
+            line=dict(color=color, width=1.5 + intensity * 3),
+            opacity=alpha,
+            hoverinfo="none",
+            showlegend=False
+        ))
 
-# ⚙️ Layout 3D
+# ⚙️ Layout grafico
 fig.update_layout(
-    scene=dict(
-        xaxis=dict(visible=False),
-        yaxis=dict(visible=False),
-        zaxis=dict(visible=False),
-        bgcolor='black'
-    ),
+    xaxis=dict(visible=False),
+    yaxis=dict(visible=False),
     margin=dict(t=0, b=0, l=0, r=0),
-    paper_bgcolor='black',
     plot_bgcolor='black',
+    paper_bgcolor='black',
+    autosize=True,
 )
 
-# 🔳 Visualizzazione interattiva fullscreen
-html_str = f"""
-<div style="position:fixed; top:0; left:0; width:100vw; height:100vh; overflow:hidden; z-index:0;">
-    {pio.to_html(fig, include_plotlyjs='cdn', full_html=False, config={"displayModeBar": False})}
-</div>
-"""
-components.html(html_str, height=900, scrolling=False)
+# 🔳 Visualizzazione schermo intero
+html_str = pio.to_html(fig, include_plotlyjs='cdn', full_html=False, config={"displayModeBar": False})
+components.html(html_str, height=1000, scrolling=False)
 
 # ℹ️ Caption
-st.markdown("""<br><br><br><br>""", unsafe_allow_html=True)
-st.caption("🎨 Le spirali tridimensionali si rigenerano ogni 10 secondi, riflettendo le qualità empatiche individuali di ciascun partecipante.")
+st.caption("🎨 Le spirali si trasformano ogni 10 secondi. Ogni spirale rappresenta un partecipante, e il colore riflette la forza delle sue qualità empatiche.")
 
 # 📘 Descrizione dell’opera
 st.markdown("---")
@@ -110,9 +104,10 @@ st.markdown("""
 Questa opera esplora l’empatia come dimensione attiva e relazionale della coscienza.  
 Andando oltre la semplice risonanza emotiva, propone una visione dell’empatia come capacità di percepire e modulare il proprio effetto sulla realtà.
 
-Ogni spirale tridimensionale rappresenta un partecipante.  
-La traiettoria, l’intensità e il colore emergono dai suoi punteggi nelle diverse qualità empatiche: fantasia, consapevolezza, preoccupazione o angoscia.
+Le spirali si trasformano continuamente, leggendo i punteggi raccolti dai partecipanti.  
+Ogni spirale rappresenta un individuo, e il colore riflette la forza relativa delle diverse qualità empatiche: fantasia, consapevolezza, preoccupazione o angoscia.
 """)
+
 
 
 
