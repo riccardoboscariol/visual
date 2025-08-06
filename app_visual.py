@@ -15,7 +15,15 @@ st_autorefresh(interval=10 * 1000, key="refresh")
 
 # 🔧 Configurazione Streamlit
 st.set_page_config(page_title="Specchio empatico", layout="wide")
-st.title("🌀 Specchio empatico")
+
+# 🔧 Rimuove padding di default
+st.markdown("""
+    <style>
+        .block-container {
+            padding: 0 !important;
+        }
+    </style>
+""", unsafe_allow_html=True)
 
 # 🔐 Credenziali Google Sheets
 scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
@@ -79,9 +87,23 @@ fig.update_layout(
     autosize=True,
 )
 
-# 🔳 Visualizzazione interattiva
-html_str = pio.to_html(fig, include_plotlyjs='cdn')
-components.html(html_str, height=700, scrolling=False)
+# 🔳 Visualizzazione interattiva a schermo intero
+custom_html = f"""
+<style>
+.fullscreen-container {{
+    position: fixed;
+    top: 0; left: 0;
+    width: 100vw;
+    height: 100vh;
+    z-index: 0;
+    overflow: hidden;
+}}
+</style>
+<div class="fullscreen-container">
+    {pio.to_html(fig, include_plotlyjs='cdn', full_html=False)}
+</div>
+"""
+components.html(custom_html, height=1000, scrolling=False)
 
 # ℹ️ Caption
 st.caption("🎨 Le spirali si trasformano ogni 10 secondi, in base alle risposte dei singoli partecipanti. Ogni spirale riflette le qualità empatiche individuali: fantasia, consapevolezza, preoccupazione o angoscia.")
@@ -100,5 +122,7 @@ Andando oltre la semplice risonanza emotiva, propone una visione dell’empatia 
 Le spirali si trasformano continuamente, leggendo i punteggi raccolti dai partecipanti.  
 Ogni spirale rappresenta un individuo, e il colore riflette la forza relativa delle diverse qualità empatiche: fantasia, consapevolezza, preoccupazione o angoscia.
 """)
+
+
 
 
