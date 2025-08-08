@@ -5,8 +5,6 @@ import pandas as pd
 import plotly.graph_objects as go
 import numpy as np
 import json
-import plotly.io as pio
-import streamlit.components.v1 as components
 import time
 
 # 🔧 Configurazione Streamlit
@@ -25,10 +23,6 @@ st.markdown("""
     }
     .block-container {
         padding: 0 !important;
-    }
-    iframe {
-        height: 100vh !important;
-        width: 100vw !important;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -88,12 +82,11 @@ def genera_figura(df):
         plot_bgcolor='black',
         paper_bgcolor='black',
         autosize=True,
-        height=1000,
-        width=2000
+        height=900
     )
     return fig
 
-# 📌 Placeholder per il grafico
+# 📌 Placeholder grafico
 grafico_placeholder = st.empty()
 
 # 📄 Testo fisso sotto il grafico
@@ -109,25 +102,28 @@ Ogni spirale rappresenta un individuo.
 L'inclinazione alternata e il respiro collettivo creano un'opera viva, che evolve al ritmo delle risposte.
 """)
 
-# 📌 Loop di aggiornamento continuo
-if "last_update" not in st.session_state:
-    st.session_state.last_update = 0
+# 📌 Loop aggiornamento in-place
+if "last_row_count" not in st.session_state:
+    st.session_state.last_row_count = 0
 
 while True:
-    # 📥 Leggi dati dal Google Sheet
     records = sheet.get_all_records()
     df = pd.DataFrame(records)
 
-    if df.empty:
-        with grafico_placeholder:
-            st.warning("Nessuna risposta ancora.")
-    else:
-        fig = genera_figura(df)
-        html_str = pio.to_html(fig, include_plotlyjs='cdn', full_html=False, config={"displayModeBar": False})
-        with grafico_placeholder:
-            components.html(html_str, height=1000, scrolling=False)
+    if not df.empty:
+        if len(df) != st.session_state.last_row_count:
+            st.session_state.last_row_count = len(df)
 
-    time.sleep(10)  # ⏳ Aggiornamento ogni 10 secondi
+        fig = genera_figura(df)
+        with grafico_placeholder:
+            st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
+
+    else:
+        grafico_placeholder.warning("Nessuna risposta ancora.")
+
+    time.sleep(10)  # Aggiorna ogni 10 secondi
+
+
 
 
 
