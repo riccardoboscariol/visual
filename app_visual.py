@@ -2,15 +2,15 @@ import streamlit as st
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 import pandas as pd
-import plotly.graph_objects as go
 import numpy as np
 import json
 import time
 
-# 🔧 Configurazione Streamlit
+# ─────────────────────────────
+# CONFIGURAZIONE STREAMLIT
+# ─────────────────────────────
 st.set_page_config(page_title="Specchio empatico", layout="wide")
 
-# 🔧 Stile full screen e no padding
 st.markdown("""
     <style>
     html, body, [class*="css"] {
@@ -24,10 +24,16 @@ st.markdown("""
     .block-container {
         padding: 0 !important;
     }
+    iframe {
+        height: 100vh !important;
+        width: 100vw !important;
+    }
     </style>
 """, unsafe_allow_html=True)
 
-# 🔐 Connessione a Google Sheets
+# ─────────────────────────────
+# CONNESSIONE A GOOGLE SHEETS
+# ─────────────────────────────
 scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
 creds_dict = dict(st.secrets["credentials"])
 if isinstance(creds_dict, str):
@@ -36,60 +42,143 @@ creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
 client = gspread.authorize(creds)
 sheet = client.open_by_key("16amhP4JqU5GsGg253F2WJn9rZQIpx1XsP3BHIwXq1EA").sheet1
 
-# 🎨 Palette colori
-palette = ["#e84393", "#e67e22", "#3498db", "#9b59b6"]
+# ─────────────────────────────
+# ENDPOINT PER DATI AGGIORNATI
+# ─────────────────────────────
+# Se l'URL contiene ?data=1, ritorna solo i dati in JSON
+query_params = st.query_params
+if "data" in query_params:
+    records = sheet.get_all_records()
+    df = pd.DataFrame(records)
 
-# 🌀 Funzione per generare la figura
-def genera_figura(df):
-    timestamp = time.time()
-    time_offset = (timestamp % 10) / 10
-    breath_scale = 1 + 0.08 * np.sin(2 * np.pi * time_offset)
+    if df.empty:
+        st.json([])
+    else:
+        palette = ["#e84393", "#e67e22", "#3498db", "#9b59b6"]
+        spirali = []
+        theta = np.linspace(0, 12 * np.pi, 1200).tolist()
 
-    fig = go.Figure()
-    theta = np.linspace(0, 12 * np.pi, 1200)
+        for idx, row in df.iterrows():
+            media = np.mean([row["PT"], row["Fantasy"], row["Empathic Concern"], row["Personal Distress"]])
+            intensity = np.clip(media / 5, 0.2, 1.0)
+            r = 0.3 + idx * 0.08
+            radius = (r * (np.array(theta) / max(theta)) * intensity * 4.5).tolist()
+            color = palette[idx % len(palette)]
 
-    for idx, row in df.iterrows():
-        media = np.mean([row["PT"], row["Fantasy"], row["Empathic Concern"], row["Personal Distress"]])
-        intensity = np.clip(media / 5, 0.2, 1.0)
-        r = 0.3 + idx * 0.08
-        radius = r * (theta / max(theta)) * intensity * 4.5 * breath_scale
-        color = palette[idx % len(palette)]
+            x = (np.array(radius) * np.cos(np.array(theta) + idx)).tolist()
+            y = (np.array(radius) * np.sin(np.array(theta) + idx)).tolist()
 
-        x = radius * np.cos(theta + idx)
-        y = radius * np.sin(theta + idx)
+            if idx % 2 == 0:
+                y_proj = (np.array(y) * 0.5 + np.array(x) * 0.2).tolist()
+            else:
+                y_proj = (np.array(y) * 0.5 - np.array(x) * 0.2).tolist()
 
-        if idx % 2 == 0:
-            y_proj = y * 0.5 + x * 0.2
-        else:
-            y_proj = y * 0.5 - x * 0.2
+            spirali.append({
+                "x": x,
+                "y": y_proj,
+                "color": color,
+                "intensity": intensity
+            })
 
-        for j in range(1, len(x), 4):
-            alpha = 0.2 + 0.7 * (j / len(x))
-            fig.add_trace(go.Scatter(
-                x=x[j-1:j+1],
-                y=y_proj[j-1:j+1],
-                mode="lines",
-                line=dict(color=color, width=1.5 + intensity * 3),
-                opacity=alpha,
-                hoverinfo="none",
-                showlegend=False
-            ))
+        st.json({"theta": theta, "spirali": spirali})
+    st.stop()
 
-    fig.update_layout(
-        xaxis=dict(visible=False),
-        yaxis=dict(visible=False),
-        margin=dict(t=0, b=0, l=0, r=0),
-        plot_bgcolor='black',
-        paper_bgcolor='black',
-        autosize=True,
-        height=900
-    )
-    return fig
+# ─────────────────────────────
+# HTML + JAVASCRIPT PER GRAFICO DINAMICO
+# ─────────────────────────────
+html_code = """
+<!DOCTYPE html>
+<html>
+<head>
+<script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+<style>
+body { margin:0; background:black; overflow:hidden; }
+#graph { width:100vw; height:100vh; }
+</style>
+</head>
+<body>
+<div id="graph"></div>
+<script>
+async function fetchData(){
+    const resp = await fetch(window.location.href + "?data=1");
+    return await resp.json();
+}
 
-# 📌 Placeholder grafico
-grafico_placeholder = st.empty()
+async function drawGraph(){
+    const data = await fetchData();
+    const traces = [];
 
-# 📄 Testo fisso sotto il grafico
+    data.spirali.forEach(s => {
+        const step = 4;
+        for(let j=1; j < s.x.length; j += step){
+            const alpha = 0.2 + 0.7 * (j / s.x.length);
+            traces.push({
+                x: s.x.slice(j-1, j+1),
+                y: s.y.slice(j-1, j+1),
+                mode: "lines",
+                line: {color: s.color, width: 1.5 + s.intensity * 3},
+                opacity: alpha,
+                hoverinfo: "none",
+                showlegend: false,
+                type: "scatter"
+            });
+        }
+    });
+
+    const layout = {
+        xaxis: {visible: false},
+        yaxis: {visible: false},
+        margin: {t:0,b:0,l:0,r:0},
+        paper_bgcolor: 'black',
+        plot_bgcolor: 'black'
+    };
+
+    Plotly.newPlot('graph', traces, layout, {displayModeBar: false});
+}
+
+// Primo disegno
+drawGraph();
+
+// Aggiornamento ogni 10 secondi senza ricreare il grafico
+setInterval(async () => {
+    const data = await fetchData();
+    const traces = [];
+
+    data.spirali.forEach(s => {
+        const step = 4;
+        for(let j=1; j < s.x.length; j += step){
+            const alpha = 0.2 + 0.7 * (j / s.x.length);
+            traces.push({
+                x: s.x.slice(j-1, j+1),
+                y: s.y.slice(j-1, j+1),
+                mode: "lines",
+                line: {color: s.color, width: 1.5 + s.intensity * 3},
+                opacity: alpha,
+                hoverinfo: "none",
+                showlegend: false,
+                type: "scatter"
+            });
+        }
+    });
+
+    Plotly.react('graph', traces, {
+        xaxis: {visible: false},
+        yaxis: {visible: false},
+        margin: {t:0,b:0,l:0,r:0},
+        paper_bgcolor: 'black',
+        plot_bgcolor: 'black'
+    }, {displayModeBar: false});
+}, 10000);
+</script>
+</body>
+</html>
+"""
+
+st.components.v1.html(html_code, height=800, scrolling=False)
+
+# ─────────────────────────────
+# DESCRIZIONI STATICHE
+# ─────────────────────────────
 st.caption("🎨 Le spirali si rigenerano ogni 10 secondi con effetto 'respiro'. Ogni spirale rappresenta un partecipante.")
 st.markdown("---")
 st.markdown("""
@@ -101,30 +190,6 @@ st.markdown("""
 Ogni spirale rappresenta un individuo.  
 L'inclinazione alternata e il respiro collettivo creano un'opera viva, che evolve al ritmo delle risposte.
 """)
-
-# 📌 Loop aggiornamento in-place
-if "last_row_count" not in st.session_state:
-    st.session_state.last_row_count = 0
-
-while True:
-    records = sheet.get_all_records()
-    df = pd.DataFrame(records)
-
-    if not df.empty:
-        if len(df) != st.session_state.last_row_count:
-            st.session_state.last_row_count = len(df)
-
-        fig = genera_figura(df)
-        with grafico_placeholder:
-            st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
-
-    else:
-        grafico_placeholder.warning("Nessuna risposta ancora.")
-
-    time.sleep(10)  # Aggiorna ogni 10 secondi
-
-
-
 
 
 
