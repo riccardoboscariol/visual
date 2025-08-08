@@ -29,9 +29,6 @@ st.markdown("""
         height: 100vh !important;
         width: 100vw !important;
     }
-    :fullscreen {
-        cursor: none;
-    }
     </style>
 """, unsafe_allow_html=True)
 
@@ -51,7 +48,7 @@ if df.empty:
     st.warning("Nessuna risposta ancora.")
     st.stop()
 
-# 🎨 Colori per dimensione empatica
+# 🎨 Colori per dimensione dominante
 dimension_colors = {
     "PT": "#e84393",               # fucsia
     "Fantasy": "#e67e22",          # arancio
@@ -59,26 +56,27 @@ dimension_colors = {
     "Personal Distress": "#9b59b6" # viola
 }
 
-theta = np.linspace(0, 12 * np.pi, 1200)
+theta = np.linspace(0, 12 * np.pi, 600)  # meno punti → più leggero
 spirali = []
 
 for idx, row in df.iterrows():
-    media = np.mean([
-        row["PT"], row["Fantasy"], row["Empathic Concern"], row["Personal Distress"]
-    ])
-    intensity = np.clip(media / 5, 0.2, 1.0)
+    media = np.mean([row["PT"], row["Fantasy"], row["Empathic Concern"], row["Personal Distress"]])
 
-    # Frequenza sfarfallio (0.5 - 3 Hz)
-    freq = 0.5 + (media / 5) * (3.0 - 0.5)
+    # Trova dimensione dominante
+    punteggi = {
+        "PT": row["PT"],
+        "Fantasy": row["Fantasy"],
+        "Empathic Concern": row["Empathic Concern"],
+        "Personal Distress": row["Personal Distress"]
+    }
+    max_score = max(punteggi.values())
+    max_dims = [dim for dim, val in punteggi.items() if val == max_score]
+    dominant_dimension = random.choice(max_dims)  # in caso di pareggio sceglie a caso
 
-    # 🔹 Determina la dimensione dominante (con gestione pareggi casuale)
-    max_score = max(row["PT"], row["Fantasy"], row["Empathic Concern"], row["Personal Distress"])
-    dominant_dims = [
-        dim for dim in ["PT", "Fantasy", "Empathic Concern", "Personal Distress"]
-        if row[dim] == max_score
-    ]
-    dominant_dimension = random.choice(dominant_dims)  # scelta casuale in caso di pareggio
     color = dimension_colors[dominant_dimension]
+
+    intensity = np.clip(media / 5, 0.2, 1.0)
+    freq = 0.5 + (media / 5) * (3.0 - 0.5)  # Hz
 
     r = 0.3 + idx * 0.08
     radius = r * (theta / max(theta)) * intensity * 4.5
@@ -100,17 +98,16 @@ for idx, row in df.iterrows():
         "freq": float(freq)
     })
 
-# 📏 Calcolo offset verticale per centratura perfetta
+# Centratura verticale
 all_y = np.concatenate([np.array(s["y"]) for s in spirali])
 y_min, y_max = all_y.min(), all_y.max()
-y_range = y_max - y_min
-OFFSET = -0.06 * y_range
+OFFSET = -0.06 * (y_max - y_min)
 for s in spirali:
     s["y"] = (np.array(s["y"]) + OFFSET).tolist()
 
 data_json = json.dumps({"spirali": spirali})
 
-# 📊 HTML + JS con effetto sfarfallio
+# 📊 HTML + JS
 html_code = f"""
 <!DOCTYPE html>
 <html>
@@ -145,50 +142,55 @@ body {{ margin:0; background:black; overflow:hidden; }}
 <script>
 const DATA = {data_json};
 let t0 = Date.now();
+let traces = [];
+const step = 4;
 
-function buildTraces(time){{
-    const traces = [];
-    DATA.spirali.forEach(s => {{
-        const step = 4;
-        const flicker = 0.5 + 0.5 * Math.sin(2 * Math.PI * s.freq * time);
-        for(let j=1; j < s.x.length; j += step){{
-            const alpha = (0.2 + 0.7 * (j / s.x.length)) * flicker;
-            traces.push({{
-                x: s.x.slice(j-1, j+1),
-                y: s.y.slice(j-1, j+1),
-                mode: "lines",
-                line: {{color: s.color, width: 1.5 + s.intensity * 3}},
-                opacity: Math.max(0, alpha),
-                hoverinfo: "none",
-                showlegend: false,
-                type: "scatter"
-            }});
-        }}
-    }});
-    return traces;
-}}
+// Creazione iniziale dei traces (statici)
+DATA.spirali.forEach(s => {{
+    for(let j=1; j < s.x.length; j += step){{
+        traces.push({{
+            x: s.x.slice(j-1, j+1),
+            y: s.y.slice(j-1, j+1),
+            mode: "lines",
+            line: {{color: s.color, width: 1.5 + s.intensity * 3}},
+            opacity: 0.5,
+            hoverinfo: "none",
+            showlegend: false,
+            type: "scatter",
+            freq: s.freq,
+            pos: j / s.x.length
+        }});
+    }}
+}});
 
-function render(){{
+const layout = {{
+    xaxis: {{visible: false, autorange: true, scaleanchor: 'y'}},
+    yaxis: {{visible: false, autorange: true}},
+    margin: {{t:0,b:0,l:0,r:0}},
+    paper_bgcolor: 'black',
+    plot_bgcolor: 'black',
+    autosize: true
+}};
+
+Plotly.newPlot('graph', traces, layout, {{
+    displayModeBar: false,
+    scrollZoom: false,
+    responsive: true
+}});
+
+// Animazione leggera a 30fps
+function animate(){{
     const time = (Date.now() - t0) / 1000;
-    const traces = buildTraces(time);
-    const layout = {{
-        xaxis: {{visible: false, autorange: true, scaleanchor: 'y'}},
-        yaxis: {{visible: false, autorange: true}},
-        margin: {{t:0,b:0,l:0,r:0}},
-        paper_bgcolor: 'black',
-        plot_bgcolor: 'black',
-        autosize: true
-    }};
-    Plotly.react('graph', traces, layout, {{
-        displayModeBar: false,
-        scrollZoom: false,
-        responsive: true
+    const newOpacities = traces.map(tr => {{
+        const flicker = 0.5 + 0.5 * Math.sin(2 * Math.PI * tr.freq * time);
+        return Math.max(0, (0.2 + 0.7 * tr.pos) * flicker);
     }});
-    requestAnimationFrame(render);
+    Plotly.restyle('graph', {{opacity: [newOpacities]}});
+    setTimeout(animate, 33); // ~30 fps
 }}
+animate();
 
-render();
-
+// Fullscreen button
 document.getElementById('fullscreen-btn').addEventListener('click', () => {{
     const graphDiv = document.getElementById('graph');
     if (graphDiv.requestFullscreen) graphDiv.requestFullscreen();
@@ -201,20 +203,6 @@ document.getElementById('fullscreen-btn').addEventListener('click', () => {{
 """
 
 st.components.v1.html(html_code, height=800, scrolling=False)
-
-# ℹ️ Caption + descrizione
-st.caption("🎨 Premi ⛶ per il fullscreen totale. Colore in base alla dimensione empatica dominante; in caso di pareggio, la scelta è casuale.")
-st.markdown("---")
-st.markdown("""
-### 🧭 *Empatia come consapevolezza dell’impatto*
-
-> *“L’empatia non è solo sentire l’altro, ma riconoscere il proprio impatto sul mondo e sulla realtà condivisa. È un atto di presenza responsabile.”*
-
-**Breve descrizione:**  
-Ogni spirale rappresenta un individuo, colorata in base alla dimensione empatica dominante.  
-L'inclinazione alternata e lo sfarfallio personalizzato creano un'opera viva, pulsante e ritmica.
-""")
-
 
 
 
