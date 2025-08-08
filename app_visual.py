@@ -109,6 +109,9 @@ body {{ margin:0; background:black; overflow:hidden; }}
 #fullscreen-btn:hover {{
     background: rgba(255,255,255,0.4);
 }}
+:fullscreen {{
+    cursor: none;
+}}
 </style>
 </head>
 <body>
@@ -168,7 +171,7 @@ document.getElementById('fullscreen-btn').addEventListener('click', () => {{
 st.components.v1.html(html_code, height=800, scrolling=False)
 
 # ℹ️ Caption + descrizione
-st.caption("🎨 Le spirali restano centrate visivamente anche a schermo intero. Premi ⛶ per la modalità fullscreen totale.")
+st.caption("🎨 Premi ⛶ per il fullscreen totale. In modalità fullscreen il cursore è nascosto per un'esperienza immersiva.")
 st.markdown("---")
 st.markdown("""
 ### 🧭 *Empatia come consapevolezza dell’impatto*
