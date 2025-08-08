@@ -97,8 +97,10 @@ body { margin:0; background:black; overflow:hidden; }
 <body>
 <div id="graph"></div>
 <script>
+const APP_URL = "https://appvisual.streamlit.app/";
+
 async function fetchData(){
-    const resp = await fetch(window.location.href + "?data=1");
+    const resp = await fetch(APP_URL + "?data=1");
     return await resp.json();
 }
 
