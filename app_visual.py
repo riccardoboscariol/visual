@@ -96,6 +96,19 @@ def genera_figura(df):
 # 📌 Placeholder per il grafico
 grafico_placeholder = st.empty()
 
+# 📄 Testo fisso sotto il grafico
+st.caption("🎨 Le spirali si rigenerano ogni 10 secondi con effetto 'respiro'. Ogni spirale rappresenta un partecipante.")
+st.markdown("---")
+st.markdown("""
+### 🧭 *Empatia come consapevolezza dell’impatto*
+
+> *“L’empatia non è solo sentire l’altro, ma riconoscere il proprio impatto sul mondo e sulla realtà condivisa. È un atto di presenza responsabile.”*
+
+**Breve descrizione:**  
+Ogni spirale rappresenta un individuo.  
+L'inclinazione alternata e il respiro collettivo creano un'opera viva, che evolve al ritmo delle risposte.
+""")
+
 # 📌 Loop di aggiornamento continuo
 if "last_update" not in st.session_state:
     st.session_state.last_update = 0
@@ -113,6 +126,8 @@ while True:
         grafico_placeholder.components.html(html_str, height=1000, scrolling=False)
 
     time.sleep(10)  # Aggiornamento ogni 10 secondi
+
+
 
 
 
