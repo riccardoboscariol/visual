@@ -6,7 +6,7 @@ import numpy as np
 import json
 from streamlit_autorefresh import st_autorefresh
 
-# 🔄 Auto-refresh ogni 10 secondi
+# 🔄 Auto-refresh ogni 10 secondi (dati nuovi)
 st_autorefresh(interval=10000, key="refresh")
 
 # 🖥 Configurazione Streamlit
@@ -55,6 +55,10 @@ spirali = []
 for idx, row in df.iterrows():
     media = np.mean([row["PT"], row["Fantasy"], row["Empathic Concern"], row["Personal Distress"]])
     intensity = np.clip(media / 5, 0.2, 1.0)
+
+    # Frequenza pulsazione in Hz (0.2 - 2.0)
+    freq = 0.2 + (media / 5) * (2.0 - 0.2)
+
     r = 0.3 + idx * 0.08
     radius = r * (theta / max(theta)) * intensity * 4.5
     color = palette[idx % len(palette)]
@@ -72,20 +76,21 @@ for idx, row in df.iterrows():
         "x": x.tolist(),
         "y": y_proj.tolist(),
         "color": color,
-        "intensity": float(intensity)
+        "intensity": float(intensity),
+        "freq": float(freq)
     })
 
 # 📏 Calcolo estensione e offset verticale (abbassiamo del 6% dell'altezza totale)
 all_y = np.concatenate([np.array(s["y"]) for s in spirali])
 y_min, y_max = all_y.min(), all_y.max()
 y_range = y_max - y_min
-OFFSET = -0.06 * y_range  # negativo = sposta verso il basso
+OFFSET = -0.06 * y_range
 for s in spirali:
     s["y"] = (np.array(s["y"]) + OFFSET).tolist()
 
 data_json = json.dumps({"spirali": spirali})
 
-# 📊 HTML + JS
+# 📊 HTML + JS con pulsazione
 html_code = f"""
 <!DOCTYPE html>
 <html>
@@ -119,16 +124,19 @@ body {{ margin:0; background:black; overflow:hidden; }}
 <div id="graph"></div>
 <script>
 const DATA = {data_json};
+let t0 = Date.now();
 
-function buildTraces(data){{
+function buildTraces(data, time){{
     const traces = [];
     data.spirali.forEach(s => {{
+        // Calcolo fattore di pulsazione (±8% della scala)
+        const scale = 1 + 0.08 * Math.sin(2 * Math.PI * s.freq * time);
         const step = 4;
         for(let j=1; j < s.x.length; j += step){{
             const alpha = 0.2 + 0.7 * (j / s.x.length);
             traces.push({{
-                x: s.x.slice(j-1, j+1),
-                y: s.y.slice(j-1, j+1),
+                x: s.x.slice(j-1, j+1).map(v => v * scale),
+                y: s.y.slice(j-1, j+1).map(v => v * scale),
                 mode: "lines",
                 line: {{color: s.color, width: 1.5 + s.intensity * 3}},
                 opacity: alpha,
@@ -141,21 +149,26 @@ function buildTraces(data){{
     return traces;
 }}
 
-const traces = buildTraces(DATA);
-const layout = {{
-    xaxis: {{visible: false, autorange: true, scaleanchor: 'y'}},
-    yaxis: {{visible: false, autorange: true}},
-    margin: {{t:0,b:0,l:0,r:0}},
-    paper_bgcolor: 'black',
-    plot_bgcolor: 'black',
-    autosize: true
-}};
+function render(){{
+    const time = (Date.now() - t0) / 1000; // in secondi
+    const traces = buildTraces(DATA, time);
+    const layout = {{
+        xaxis: {{visible: false, autorange: true, scaleanchor: 'y'}},
+        yaxis: {{visible: false, autorange: true}},
+        margin: {{t:0,b:0,l:0,r:0}},
+        paper_bgcolor: 'black',
+        plot_bgcolor: 'black',
+        autosize: true
+    }};
+    Plotly.react('graph', traces, layout, {{
+        displayModeBar: false,
+        scrollZoom: true,
+        responsive: true
+    }});
+    requestAnimationFrame(render);
+}}
 
-Plotly.newPlot('graph', traces, layout, {{
-    displayModeBar: false,
-    scrollZoom: true,
-    responsive: true
-}});
+render();
 
 document.getElementById('fullscreen-btn').addEventListener('click', () => {{
     const graphDiv = document.getElementById('graph');
@@ -171,7 +184,7 @@ document.getElementById('fullscreen-btn').addEventListener('click', () => {{
 st.components.v1.html(html_code, height=800, scrolling=False)
 
 # ℹ️ Caption + descrizione
-st.caption("🎨 Premi ⛶ per il fullscreen totale. In modalità fullscreen il cursore è nascosto per un'esperienza immersiva.")
+st.caption("🎨 Premi ⛶ per il fullscreen totale. Ogni spirale pulsa a velocità proporzionale al punteggio medio del partecipante.")
 st.markdown("---")
 st.markdown("""
 ### 🧭 *Empatia come consapevolezza dell’impatto*
@@ -180,10 +193,8 @@ st.markdown("""
 
 **Breve descrizione:**  
 Ogni spirale rappresenta un individuo.  
-L'inclinazione alternata crea un'opera viva, che evolve al ritmo delle risposte.
+L'inclinazione alternata e la pulsazione personalizzata creano un'opera viva e ritmica.
 """)
-
-
 
 
 
