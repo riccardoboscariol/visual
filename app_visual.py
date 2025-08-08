@@ -4,6 +4,7 @@ from oauth2client.service_account import ServiceAccountCredentials
 import pandas as pd
 import numpy as np
 import json
+import random
 from streamlit_autorefresh import st_autorefresh
 
 # 🔄 Auto-refresh ogni 10 secondi
@@ -47,7 +48,7 @@ if df.empty:
     st.warning("Nessuna risposta ancora.")
     st.stop()
 
-# 🎨 Mappatura colori in base alla dimensione dominante
+# 🎨 Mappatura base colori (dimensione dominante → colore base HEX)
 dimension_colors = {
     "PT": "#e84393",               # fucsia
     "Fantasy": "#e67e22",          # arancio
@@ -67,27 +68,32 @@ for idx, row in df.iterrows():
         row["Empathic Concern"],
         row["Personal Distress"]
     ])
-
-    # trova dimensione dominante
-    dominant_dimension = max(
-        ["PT", "Fantasy", "Empathic Concern", "Personal Distress"],
-        key=lambda dim: row[dim]
-    )
-
-    # colore in base alla dimensione dominante
+    
+    # trova il punteggio massimo
+    max_score = max(row["PT"], row["Fantasy"], row["Empathic Concern"], row["Personal Distress"])
+    
+    # trova tutte le scale con quel punteggio
+    dominant_candidates = [
+        dim for dim in ["PT", "Fantasy", "Empathic Concern", "Personal Distress"]
+        if row[dim] == max_score
+    ]
+    
+    # sceglie a caso tra le scale a pari punteggio
+    dominant_dimension = random.choice(dominant_candidates)
+    
+    # assegna il colore base
     color = dimension_colors[dominant_dimension]
 
     # intensità per spessore linea
     intensity = np.clip(media / 5, 0.2, 1.0)
 
-    # Frequenza sfarfallio (0.5 - 3 Hz)
+    # frequenza sfarfallio (0.5 - 3 Hz)
     freq = 0.5 + (media / 5) * (3.0 - 0.5)
 
-    # calcolo raggio spirale
+    # calcolo coordinate spirale
     r = 0.3 + idx * 0.08
     radius = r * (theta / max(theta)) * intensity * 4.5
 
-    # coordinate
     x = radius * np.cos(theta + idx)
     y = radius * np.sin(theta + idx)
 
@@ -105,7 +111,7 @@ for idx, row in df.iterrows():
         "freq": float(freq)
     })
 
-# 📏 Calcolo offset verticale per centratura perfetta
+# 📏 Offset verticale per centratura perfetta
 all_y = np.concatenate([np.array(s["y"]) for s in spirali])
 y_min, y_max = all_y.min(), all_y.max()
 y_range = y_max - y_min
@@ -113,10 +119,9 @@ OFFSET = -0.06 * y_range
 for s in spirali:
     s["y"] = (np.array(s["y"]) + OFFSET).tolist()
 
-# 📦 JSON per passare al JS
 data_json = json.dumps({"spirali": spirali})
 
-# 📊 HTML + JS con effetto sfarfallio
+# 📊 HTML + JS con effetto sfarfallio e pulsante fullscreen
 html_code = f"""
 <!DOCTYPE html>
 <html>
@@ -209,7 +214,7 @@ document.getElementById('fullscreen-btn').addEventListener('click', () => {{
 st.components.v1.html(html_code, height=800, scrolling=False)
 
 # ℹ️ Caption + descrizione
-st.caption("🎨 Premi ⛶ per il fullscreen totale. Ogni spirale ha colore in base alla scala dominante e sfarfalla proporzionalmente al punteggio medio.")
+st.caption("🎨 Premi ⛶ per il fullscreen totale. Ogni spirale ha un colore basato sulla dimensione empatica dominante e uno sfarfallio proporzionale al punteggio medio del partecipante.")
 st.markdown("---")
 st.markdown("""
 ### 🧭 *Empatia come consapevolezza dell’impatto*
@@ -218,9 +223,8 @@ st.markdown("""
 
 **Breve descrizione:**  
 Ogni spirale rappresenta un individuo.  
-- Colore base → scala con punteggio più alto per il partecipante  
-- Sfarfallio → proporzionale al punteggio medio  
-- Inclinazione alternata → per dinamica visiva
+Il colore è determinato dalla scala con punteggio più alto (scelta casuale in caso di pareggio).  
+L'inclinazione alternata e lo sfarfallio personalizzato creano un'opera viva, pulsante e ritmica.
 """)
 
 
