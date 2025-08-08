@@ -51,7 +51,6 @@ if df.empty:
 palette = ["#e84393", "#e67e22", "#3498db", "#9b59b6"]
 theta = np.linspace(0, 12 * np.pi, 1200)
 spirali = []
-OFFSET_Y = -0.3  # negativo = sposta verso il basso
 
 for idx, row in df.iterrows():
     media = np.mean([row["PT"], row["Fantasy"], row["Empathic Concern"], row["Personal Distress"]])
@@ -60,24 +59,33 @@ for idx, row in df.iterrows():
     radius = r * (theta / max(theta)) * intensity * 4.5
     color = palette[idx % len(palette)]
 
-    x = (radius * np.cos(theta + idx)).tolist()
-    y = (radius * np.sin(theta + idx)).tolist()
+    x = radius * np.cos(theta + idx)
+    y = radius * np.sin(theta + idx)
 
+    # Inclinazione alternata
     if idx % 2 == 0:
-        y_proj = (np.array(y) * 0.5 + np.array(x) * 0.2 + OFFSET_Y).tolist()
+        y_proj = y * 0.5 + x * 0.2
     else:
-        y_proj = (np.array(y) * 0.5 - np.array(x) * 0.2 + OFFSET_Y).tolist()
+        y_proj = y * 0.5 - x * 0.2
 
     spirali.append({
-        "x": x,
-        "y": y_proj,
+        "x": x.tolist(),
+        "y": y_proj.tolist(),
         "color": color,
         "intensity": float(intensity)
     })
 
+# 📏 Calcolo estensione e offset verticale (abbassiamo del 6% dell'altezza totale)
+all_y = np.concatenate([np.array(s["y"]) for s in spirali])
+y_min, y_max = all_y.min(), all_y.max()
+y_range = y_max - y_min
+OFFSET = -0.06 * y_range  # negativo = sposta verso il basso
+for s in spirali:
+    s["y"] = (np.array(s["y"]) + OFFSET).tolist()
+
 data_json = json.dumps({"spirali": spirali})
 
-# 📊 HTML + JS con dati incorporati e pulsante fullscreen
+# 📊 HTML + JS
 html_code = f"""
 <!DOCTYPE html>
 <html>
@@ -85,7 +93,7 @@ html_code = f"""
 <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
 <style>
 body {{ margin:0; background:black; overflow:hidden; }}
-#graph {{ width:100vw; height:100vh; }}
+#graph {{ width:100vw; height:100vh; position:relative; }}
 #fullscreen-btn {{
     position: absolute;
     top: 10px; right: 10px;
@@ -130,31 +138,28 @@ function buildTraces(data){{
     return traces;
 }}
 
-function drawGraph(){{
-    const traces = buildTraces(DATA);
-    const layout = {{
-        xaxis: {{visible: false, autorange: true, scaleanchor: 'y'}},
-        yaxis: {{visible: false, autorange: true}},
-        margin: {{t:0,b:0,l:0,r:0}},
-        paper_bgcolor: 'black',
-        plot_bgcolor: 'black',
-        autosize: true
-    }};
-    Plotly.newPlot('graph', traces, layout, {{displayModeBar: false}});
-}}
+const traces = buildTraces(DATA);
+const layout = {{
+    xaxis: {{visible: false, autorange: true, scaleanchor: 'y'}},
+    yaxis: {{visible: false, autorange: true}},
+    margin: {{t:0,b:0,l:0,r:0}},
+    paper_bgcolor: 'black',
+    plot_bgcolor: 'black',
+    autosize: true
+}};
 
-document.getElementById("fullscreen-btn").addEventListener("click", () => {{
-    const graphDiv = document.getElementById("graph");
-    if (graphDiv.requestFullscreen) {{
-        graphDiv.requestFullscreen();
-    }} else if (graphDiv.webkitRequestFullscreen) {{
-        graphDiv.webkitRequestFullscreen();
-    }} else if (graphDiv.msRequestFullscreen) {{
-        graphDiv.msRequestFullscreen();
-    }}
+Plotly.newPlot('graph', traces, layout, {{
+    displayModeBar: false,
+    scrollZoom: true,
+    responsive: true
 }});
 
-drawGraph();
+document.getElementById('fullscreen-btn').addEventListener('click', () => {{
+    const graphDiv = document.getElementById('graph');
+    if (graphDiv.requestFullscreen) graphDiv.requestFullscreen();
+    else if (graphDiv.webkitRequestFullscreen) graphDiv.webkitRequestFullscreen();
+    else if (graphDiv.msRequestFullscreen) graphDiv.msRequestFullscreen();
+}});
 </script>
 </body>
 </html>
@@ -163,7 +168,7 @@ drawGraph();
 st.components.v1.html(html_code, height=800, scrolling=False)
 
 # ℹ️ Caption + descrizione
-st.caption("🎨 Le spirali si rigenerano ogni 10 secondi senza interruzioni visive. Premi ⛶ per la modalità schermo intero totale.")
+st.caption("🎨 Le spirali restano centrate visivamente anche a schermo intero. Premi ⛶ per la modalità fullscreen totale.")
 st.markdown("---")
 st.markdown("""
 ### 🧭 *Empatia come consapevolezza dell’impatto*
@@ -174,6 +179,7 @@ st.markdown("""
 Ogni spirale rappresenta un individuo.  
 L'inclinazione alternata crea un'opera viva, che evolve al ritmo delle risposte.
 """)
+
 
 
 
