@@ -12,7 +12,7 @@ import time
 # 🔧 Configurazione Streamlit
 st.set_page_config(page_title="Specchio empatico", layout="wide")
 
-# 🔧 Rimuovi padding e imposta full screen
+# 🔧 Stile full screen e no padding
 st.markdown("""
     <style>
     html, body, [class*="css"] {
@@ -33,7 +33,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# 🔐 Autenticazione Google Sheets
+# 🔐 Connessione a Google Sheets
 scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
 creds_dict = dict(st.secrets["credentials"])
 if isinstance(creds_dict, str):
@@ -45,7 +45,7 @@ sheet = client.open_by_key("16amhP4JqU5GsGg253F2WJn9rZQIpx1XsP3BHIwXq1EA").sheet
 # 🎨 Palette colori
 palette = ["#e84393", "#e67e22", "#3498db", "#9b59b6"]
 
-# 🌀 Funzione per generare il grafico
+# 🌀 Funzione per generare la figura
 def genera_figura(df):
     timestamp = time.time()
     time_offset = (timestamp % 10) / 10
@@ -114,18 +114,20 @@ if "last_update" not in st.session_state:
     st.session_state.last_update = 0
 
 while True:
-    # Leggi dati dal Google Sheet
+    # 📥 Leggi dati dal Google Sheet
     records = sheet.get_all_records()
     df = pd.DataFrame(records)
 
     if df.empty:
-        grafico_placeholder.warning("Nessuna risposta ancora.")
+        with grafico_placeholder:
+            st.warning("Nessuna risposta ancora.")
     else:
         fig = genera_figura(df)
         html_str = pio.to_html(fig, include_plotlyjs='cdn', full_html=False, config={"displayModeBar": False})
-        grafico_placeholder.components.html(html_str, height=1000, scrolling=False)
+        with grafico_placeholder:
+            components.html(html_str, height=1000, scrolling=False)
 
-    time.sleep(10)  # Aggiornamento ogni 10 secondi
+    time.sleep(10)  # ⏳ Aggiornamento ogni 10 secondi
 
 
 
