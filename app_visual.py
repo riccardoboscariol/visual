@@ -7,11 +7,7 @@ import numpy as np
 import json
 import plotly.io as pio
 import streamlit.components.v1 as components
-from streamlit_autorefresh import st_autorefresh
 import time
-
-# 🔁 Auto-refresh continuo ogni 10 secondi
-st_autorefresh(interval=10000, key="refresh")
 
 # 🔧 Configurazione Streamlit
 st.set_page_config(page_title="Specchio empatico", layout="wide")
@@ -46,32 +42,15 @@ creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
 client = gspread.authorize(creds)
 sheet = client.open_by_key("16amhP4JqU5GsGg253F2WJn9rZQIpx1XsP3BHIwXq1EA").sheet1
 
-# 📥 Lettura dati
-records = sheet.get_all_records()
-df = pd.DataFrame(records)
-
-if df.empty:
-    st.warning("Nessuna risposta ancora.")
-    st.stop()
-
-# 🧠 Controllo variazione righe
-current_row_count = len(df)
-if "last_row_count" not in st.session_state:
-    st.session_state.last_row_count = 0
-
-data_changed = current_row_count != st.session_state.last_row_count
-st.session_state.last_row_count = current_row_count
-
-# 🎨 Palette
+# 🎨 Palette colori
 palette = ["#e84393", "#e67e22", "#3498db", "#9b59b6"]
 
-# ⏱️ Effetto respiro
-timestamp = time.time()
-time_offset = (timestamp % 10) / 10
-breath_scale = 1 + 0.08 * np.sin(2 * np.pi * time_offset)
+# 🌀 Funzione per generare il grafico
+def genera_figura(df):
+    timestamp = time.time()
+    time_offset = (timestamp % 10) / 10
+    breath_scale = 1 + 0.08 * np.sin(2 * np.pi * time_offset)
 
-# 🌀 Creazione grafico in memoria (per evitare blink)
-def genera_figura():
     fig = go.Figure()
     theta = np.linspace(0, 12 * np.pi, 1200)
 
@@ -114,29 +93,26 @@ def genera_figura():
     )
     return fig
 
-# 🎯 Genera figura e HTML
-fig = genera_figura()
-html_str = pio.to_html(fig, include_plotlyjs='cdn', full_html=False, config={"displayModeBar": False})
+# 📌 Placeholder per il grafico
+grafico_placeholder = st.empty()
 
-# 🖼️ Mostra grafico senza blink
-placeholder = st.empty()
-with placeholder:
-    components.html(html_str, height=1000, scrolling=False)
+# 📌 Loop di aggiornamento continuo
+if "last_update" not in st.session_state:
+    st.session_state.last_update = 0
 
-# ℹ️ Caption
-st.caption("🎨 Le spirali si rigenerano solo quando nuovi dati vengono rilevati. Effetto 'respiro' sincronizzato.")
+while True:
+    # Leggi dati dal Google Sheet
+    records = sheet.get_all_records()
+    df = pd.DataFrame(records)
 
-# 📘 Descrizione
-st.markdown("---")
-st.markdown("""
-### 🧭 *Empatia come consapevolezza dell’impatto*
+    if df.empty:
+        grafico_placeholder.warning("Nessuna risposta ancora.")
+    else:
+        fig = genera_figura(df)
+        html_str = pio.to_html(fig, include_plotlyjs='cdn', full_html=False, config={"displayModeBar": False})
+        grafico_placeholder.components.html(html_str, height=1000, scrolling=False)
 
-> *“L’empatia non è solo sentire l’altro, ma riconoscere il proprio impatto sul mondo e sulla realtà condivisa. È un atto di presenza responsabile.”*
-
-**Breve descrizione:**  
-Ogni spirale rappresenta un individuo.  
-L'inclinazione alternata e il respiro collettivo creano un'opera viva, che evolve al ritmo delle risposte.
-""")
+    time.sleep(10)  # Aggiornamento ogni 10 secondi
 
 
 
