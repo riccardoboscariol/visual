@@ -4,7 +4,6 @@ from oauth2client.service_account import ServiceAccountCredentials
 import pandas as pd
 import numpy as np
 import json
-import time
 
 # ─────────────────────────────
 # CONFIGURAZIONE STREAMLIT
@@ -43,30 +42,29 @@ client = gspread.authorize(creds)
 sheet = client.open_by_key("16amhP4JqU5GsGg253F2WJn9rZQIpx1XsP3BHIwXq1EA").sheet1
 
 # ─────────────────────────────
-# ENDPOINT PER DATI AGGIORNATI
+# ENDPOINT SOLO DATI (JSON)
 # ─────────────────────────────
-# Se l'URL contiene ?data=1, ritorna solo i dati in JSON
 query_params = st.query_params
 if "data" in query_params:
     records = sheet.get_all_records()
     df = pd.DataFrame(records)
 
     if df.empty:
-        st.json([])
+        st.json({"spirali": []})
     else:
         palette = ["#e84393", "#e67e22", "#3498db", "#9b59b6"]
         spirali = []
-        theta = np.linspace(0, 12 * np.pi, 1200).tolist()
+        theta = np.linspace(0, 12 * np.pi, 1200)
 
         for idx, row in df.iterrows():
             media = np.mean([row["PT"], row["Fantasy"], row["Empathic Concern"], row["Personal Distress"]])
             intensity = np.clip(media / 5, 0.2, 1.0)
             r = 0.3 + idx * 0.08
-            radius = (r * (np.array(theta) / max(theta)) * intensity * 4.5).tolist()
+            radius = r * (theta / max(theta)) * intensity * 4.5
             color = palette[idx % len(palette)]
 
-            x = (np.array(radius) * np.cos(np.array(theta) + idx)).tolist()
-            y = (np.array(radius) * np.sin(np.array(theta) + idx)).tolist()
+            x = (radius * np.cos(theta + idx)).tolist()
+            y = (radius * np.sin(theta + idx)).tolist()
 
             if idx % 2 == 0:
                 y_proj = (np.array(y) * 0.5 + np.array(x) * 0.2).tolist()
@@ -77,14 +75,14 @@ if "data" in query_params:
                 "x": x,
                 "y": y_proj,
                 "color": color,
-                "intensity": intensity
+                "intensity": float(intensity)
             })
 
-        st.json({"theta": theta, "spirali": spirali})
+        st.json({"spirali": spirali})
     st.stop()
 
 # ─────────────────────────────
-# HTML + JAVASCRIPT PER GRAFICO DINAMICO
+# HTML + JAVASCRIPT PER GRAFICO
 # ─────────────────────────────
 html_code = """
 <!DOCTYPE html>
@@ -104,10 +102,8 @@ async function fetchData(){
     return await resp.json();
 }
 
-async function drawGraph(){
-    const data = await fetchData();
+function buildTraces(data){
     const traces = [];
-
     data.spirali.forEach(s => {
         const step = 4;
         for(let j=1; j < s.x.length; j += step){
@@ -124,7 +120,12 @@ async function drawGraph(){
             });
         }
     });
+    return traces;
+}
 
+async function drawGraph(){
+    const data = await fetchData();
+    const traces = buildTraces(data);
     const layout = {
         xaxis: {visible: false},
         yaxis: {visible: false},
@@ -132,35 +133,16 @@ async function drawGraph(){
         paper_bgcolor: 'black',
         plot_bgcolor: 'black'
     };
-
     Plotly.newPlot('graph', traces, layout, {displayModeBar: false});
 }
 
 // Primo disegno
 drawGraph();
 
-// Aggiornamento ogni 10 secondi senza ricreare il grafico
+// Aggiornamento ogni 10 secondi senza ricreare il canvas
 setInterval(async () => {
     const data = await fetchData();
-    const traces = [];
-
-    data.spirali.forEach(s => {
-        const step = 4;
-        for(let j=1; j < s.x.length; j += step){
-            const alpha = 0.2 + 0.7 * (j / s.x.length);
-            traces.push({
-                x: s.x.slice(j-1, j+1),
-                y: s.y.slice(j-1, j+1),
-                mode: "lines",
-                line: {color: s.color, width: 1.5 + s.intensity * 3},
-                opacity: alpha,
-                hoverinfo: "none",
-                showlegend: false,
-                type: "scatter"
-            });
-        }
-    });
-
+    const traces = buildTraces(data);
     Plotly.react('graph', traces, {
         xaxis: {visible: false},
         yaxis: {visible: false},
@@ -177,7 +159,7 @@ setInterval(async () => {
 st.components.v1.html(html_code, height=800, scrolling=False)
 
 # ─────────────────────────────
-# DESCRIZIONI STATICHE
+# DESCRIZIONI SOTTO L'OPERA
 # ─────────────────────────────
 st.caption("🎨 Le spirali si rigenerano ogni 10 secondi con effetto 'respiro'. Ogni spirale rappresenta un partecipante.")
 st.markdown("---")
@@ -190,6 +172,7 @@ st.markdown("""
 Ogni spirale rappresenta un individuo.  
 L'inclinazione alternata e il respiro collettivo creano un'opera viva, che evolve al ritmo delle risposte.
 """)
+
 
 
 
