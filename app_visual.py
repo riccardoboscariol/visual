@@ -47,26 +47,51 @@ if df.empty:
     st.warning("Nessuna risposta ancora.")
     st.stop()
 
+# 🎨 Mappatura colori in base alla dimensione dominante
+dimension_colors = {
+    "PT": "#e84393",               # fucsia
+    "Fantasy": "#e67e22",          # arancio
+    "Empathic Concern": "#3498db", # azzurro
+    "Personal Distress": "#9b59b6" # viola
+}
+
 # 🎨 Genera dati spirali
-palette = ["#e84393", "#e67e22", "#3498db", "#9b59b6"]
 theta = np.linspace(0, 12 * np.pi, 1200)
 spirali = []
 
 for idx, row in df.iterrows():
-    media = np.mean([row["PT"], row["Fantasy"], row["Empathic Concern"], row["Personal Distress"]])
+    # punteggio medio
+    media = np.mean([
+        row["PT"],
+        row["Fantasy"],
+        row["Empathic Concern"],
+        row["Personal Distress"]
+    ])
+
+    # trova dimensione dominante
+    dominant_dimension = max(
+        ["PT", "Fantasy", "Empathic Concern", "Personal Distress"],
+        key=lambda dim: row[dim]
+    )
+
+    # colore in base alla dimensione dominante
+    color = dimension_colors[dominant_dimension]
+
+    # intensità per spessore linea
     intensity = np.clip(media / 5, 0.2, 1.0)
 
     # Frequenza sfarfallio (0.5 - 3 Hz)
     freq = 0.5 + (media / 5) * (3.0 - 0.5)
 
+    # calcolo raggio spirale
     r = 0.3 + idx * 0.08
     radius = r * (theta / max(theta)) * intensity * 4.5
-    color = palette[idx % len(palette)]
 
+    # coordinate
     x = radius * np.cos(theta + idx)
     y = radius * np.sin(theta + idx)
 
-    # Inclinazione alternata
+    # inclinazione alternata
     if idx % 2 == 0:
         y_proj = y * 0.5 + x * 0.2
     else:
@@ -88,6 +113,7 @@ OFFSET = -0.06 * y_range
 for s in spirali:
     s["y"] = (np.array(s["y"]) + OFFSET).tolist()
 
+# 📦 JSON per passare al JS
 data_json = json.dumps({"spirali": spirali})
 
 # 📊 HTML + JS con effetto sfarfallio
@@ -130,7 +156,6 @@ function buildTraces(time){{
     const traces = [];
     DATA.spirali.forEach(s => {{
         const step = 4;
-        // Calcolo opacità variabile in base alla frequenza
         const flicker = 0.5 + 0.5 * Math.sin(2 * Math.PI * s.freq * time);
         for(let j=1; j < s.x.length; j += step){{
             const alpha = (0.2 + 0.7 * (j / s.x.length)) * flicker;
@@ -150,7 +175,7 @@ function buildTraces(time){{
 }}
 
 function render(){{
-    const time = (Date.now() - t0) / 1000; // in secondi
+    const time = (Date.now() - t0) / 1000;
     const traces = buildTraces(time);
     const layout = {{
         xaxis: {{visible: false, autorange: true, scaleanchor: 'y'}},
@@ -184,7 +209,7 @@ document.getElementById('fullscreen-btn').addEventListener('click', () => {{
 st.components.v1.html(html_code, height=800, scrolling=False)
 
 # ℹ️ Caption + descrizione
-st.caption("🎨 Premi ⛶ per il fullscreen totale. Ogni spirale sfarfalla a velocità proporzionale al punteggio medio del partecipante.")
+st.caption("🎨 Premi ⛶ per il fullscreen totale. Ogni spirale ha colore in base alla scala dominante e sfarfalla proporzionalmente al punteggio medio.")
 st.markdown("---")
 st.markdown("""
 ### 🧭 *Empatia come consapevolezza dell’impatto*
@@ -193,8 +218,12 @@ st.markdown("""
 
 **Breve descrizione:**  
 Ogni spirale rappresenta un individuo.  
-L'inclinazione alternata e lo sfarfallio personalizzato creano un'opera viva, pulsante e ritmica.
+- Colore base → scala con punteggio più alto per il partecipante  
+- Sfarfallio → proporzionale al punteggio medio  
+- Inclinazione alternata → per dinamica visiva
 """)
+
+
 
 
 
