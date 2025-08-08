@@ -4,6 +4,7 @@ from oauth2client.service_account import ServiceAccountCredentials
 import pandas as pd
 import numpy as np
 import json
+import random
 from streamlit_autorefresh import st_autorefresh
 
 # 🔄 Auto-refresh ogni 10 secondi
@@ -28,6 +29,9 @@ st.markdown("""
         height: 100vh !important;
         width: 100vw !important;
     }
+    :fullscreen {
+        cursor: none;
+    }
     </style>
 """, unsafe_allow_html=True)
 
@@ -47,21 +51,37 @@ if df.empty:
     st.warning("Nessuna risposta ancora.")
     st.stop()
 
-# 🎨 Genera dati spirali
-palette = ["#e84393", "#e67e22", "#3498db", "#9b59b6"]
+# 🎨 Colori per dimensione empatica
+dimension_colors = {
+    "PT": "#e84393",               # fucsia
+    "Fantasy": "#e67e22",          # arancio
+    "Empathic Concern": "#3498db", # azzurro
+    "Personal Distress": "#9b59b6" # viola
+}
+
 theta = np.linspace(0, 12 * np.pi, 1200)
 spirali = []
 
 for idx, row in df.iterrows():
-    media = np.mean([row["PT"], row["Fantasy"], row["Empathic Concern"], row["Personal Distress"]])
+    media = np.mean([
+        row["PT"], row["Fantasy"], row["Empathic Concern"], row["Personal Distress"]
+    ])
     intensity = np.clip(media / 5, 0.2, 1.0)
 
     # Frequenza sfarfallio (0.5 - 3 Hz)
     freq = 0.5 + (media / 5) * (3.0 - 0.5)
 
+    # 🔹 Determina la dimensione dominante (con gestione pareggi casuale)
+    max_score = max(row["PT"], row["Fantasy"], row["Empathic Concern"], row["Personal Distress"])
+    dominant_dims = [
+        dim for dim in ["PT", "Fantasy", "Empathic Concern", "Personal Distress"]
+        if row[dim] == max_score
+    ]
+    dominant_dimension = random.choice(dominant_dims)  # scelta casuale in caso di pareggio
+    color = dimension_colors[dominant_dimension]
+
     r = 0.3 + idx * 0.08
     radius = r * (theta / max(theta)) * intensity * 4.5
-    color = palette[idx % len(palette)]
 
     x = radius * np.cos(theta + idx)
     y = radius * np.sin(theta + idx)
@@ -130,7 +150,6 @@ function buildTraces(time){{
     const traces = [];
     DATA.spirali.forEach(s => {{
         const step = 4;
-        // Calcolo opacità variabile in base alla frequenza
         const flicker = 0.5 + 0.5 * Math.sin(2 * Math.PI * s.freq * time);
         for(let j=1; j < s.x.length; j += step){{
             const alpha = (0.2 + 0.7 * (j / s.x.length)) * flicker;
@@ -150,7 +169,7 @@ function buildTraces(time){{
 }}
 
 function render(){{
-    const time = (Date.now() - t0) / 1000; // in secondi
+    const time = (Date.now() - t0) / 1000;
     const traces = buildTraces(time);
     const layout = {{
         xaxis: {{visible: false, autorange: true, scaleanchor: 'y'}},
@@ -184,7 +203,7 @@ document.getElementById('fullscreen-btn').addEventListener('click', () => {{
 st.components.v1.html(html_code, height=800, scrolling=False)
 
 # ℹ️ Caption + descrizione
-st.caption("🎨 Premi ⛶ per il fullscreen totale. Ogni spirale sfarfalla a velocità proporzionale al punteggio medio del partecipante.")
+st.caption("🎨 Premi ⛶ per il fullscreen totale. Colore in base alla dimensione empatica dominante; in caso di pareggio, la scelta è casuale.")
 st.markdown("---")
 st.markdown("""
 ### 🧭 *Empatia come consapevolezza dell’impatto*
@@ -192,10 +211,9 @@ st.markdown("""
 > *“L’empatia non è solo sentire l’altro, ma riconoscere il proprio impatto sul mondo e sulla realtà condivisa. È un atto di presenza responsabile.”*
 
 **Breve descrizione:**  
-Ogni spirale rappresenta un individuo.  
+Ogni spirale rappresenta un individuo, colorata in base alla dimensione empatica dominante.  
 L'inclinazione alternata e lo sfarfallio personalizzato creano un'opera viva, pulsante e ritmica.
 """)
-
 
 
 
