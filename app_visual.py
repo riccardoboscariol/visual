@@ -51,6 +51,7 @@ if df.empty:
 palette = ["#e84393", "#e67e22", "#3498db", "#9b59b6"]
 theta = np.linspace(0, 12 * np.pi, 1200)
 spirali = []
+OFFSET_Y = -0.3  # negativo = sposta verso il basso
 
 for idx, row in df.iterrows():
     media = np.mean([row["PT"], row["Fantasy"], row["Empathic Concern"], row["Personal Distress"]])
@@ -63,9 +64,9 @@ for idx, row in df.iterrows():
     y = (radius * np.sin(theta + idx)).tolist()
 
     if idx % 2 == 0:
-        y_proj = (np.array(y) * 0.5 + np.array(x) * 0.2).tolist()
+        y_proj = (np.array(y) * 0.5 + np.array(x) * 0.2 + OFFSET_Y).tolist()
     else:
-        y_proj = (np.array(y) * 0.5 - np.array(x) * 0.2).tolist()
+        y_proj = (np.array(y) * 0.5 - np.array(x) * 0.2 + OFFSET_Y).tolist()
 
     spirali.append({
         "x": x,
@@ -173,6 +174,7 @@ st.markdown("""
 Ogni spirale rappresenta un individuo.  
 L'inclinazione alternata crea un'opera viva, che evolve al ritmo delle risposte.
 """)
+
 
 
 
