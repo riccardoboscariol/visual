@@ -8,6 +8,10 @@ import json
 import colorsys
 import time
 
+st.cache_data.clear()
+st.cache_resource.clear()
+
+
 # 📌 Auto-refresh ogni 10 secondi
 st.set_page_config(page_title="Specchio empatico", layout="wide")
 st.markdown("""
@@ -150,5 +154,6 @@ Ogni spirale rappresenta un partecipante.
 
 L'opera evolve in tempo reale con l'arrivo di nuove risposte.
 """)
+
 
 
