@@ -6,7 +6,7 @@ import numpy as np
 import json
 from streamlit_autorefresh import st_autorefresh
 
-# 🔄 Auto-refresh ogni 10 secondi (dati nuovi)
+# 🔄 Auto-refresh ogni 10 secondi
 st_autorefresh(interval=10000, key="refresh")
 
 # 🖥 Configurazione Streamlit
@@ -56,8 +56,8 @@ for idx, row in df.iterrows():
     media = np.mean([row["PT"], row["Fantasy"], row["Empathic Concern"], row["Personal Distress"]])
     intensity = np.clip(media / 5, 0.2, 1.0)
 
-    # Frequenza pulsazione in Hz (0.2 - 2.0)
-    freq = 0.2 + (media / 5) * (2.0 - 0.2)
+    # Frequenza sfarfallio (0.5 - 3 Hz)
+    freq = 0.5 + (media / 5) * (3.0 - 0.5)
 
     r = 0.3 + idx * 0.08
     radius = r * (theta / max(theta)) * intensity * 4.5
@@ -80,7 +80,7 @@ for idx, row in df.iterrows():
         "freq": float(freq)
     })
 
-# 📏 Calcolo estensione e offset verticale (abbassiamo del 6% dell'altezza totale)
+# 📏 Calcolo offset verticale per centratura perfetta
 all_y = np.concatenate([np.array(s["y"]) for s in spirali])
 y_min, y_max = all_y.min(), all_y.max()
 y_range = y_max - y_min
@@ -90,7 +90,7 @@ for s in spirali:
 
 data_json = json.dumps({"spirali": spirali})
 
-# 📊 HTML + JS con pulsazione
+# 📊 HTML + JS con effetto sfarfallio
 html_code = f"""
 <!DOCTYPE html>
 <html>
@@ -126,20 +126,20 @@ body {{ margin:0; background:black; overflow:hidden; }}
 const DATA = {data_json};
 let t0 = Date.now();
 
-function buildTraces(data, time){{
+function buildTraces(time){{
     const traces = [];
-    data.spirali.forEach(s => {{
-        // Calcolo fattore di pulsazione (±8% della scala)
-        const scale = 1 + 0.08 * Math.sin(2 * Math.PI * s.freq * time);
+    DATA.spirali.forEach(s => {{
         const step = 4;
+        // Calcolo opacità variabile in base alla frequenza
+        const flicker = 0.5 + 0.5 * Math.sin(2 * Math.PI * s.freq * time);
         for(let j=1; j < s.x.length; j += step){{
-            const alpha = 0.2 + 0.7 * (j / s.x.length);
+            const alpha = (0.2 + 0.7 * (j / s.x.length)) * flicker;
             traces.push({{
-                x: s.x.slice(j-1, j+1).map(v => v * scale),
-                y: s.y.slice(j-1, j+1).map(v => v * scale),
+                x: s.x.slice(j-1, j+1),
+                y: s.y.slice(j-1, j+1),
                 mode: "lines",
                 line: {{color: s.color, width: 1.5 + s.intensity * 3}},
-                opacity: alpha,
+                opacity: Math.max(0, alpha),
                 hoverinfo: "none",
                 showlegend: false,
                 type: "scatter"
@@ -151,7 +151,7 @@ function buildTraces(data, time){{
 
 function render(){{
     const time = (Date.now() - t0) / 1000; // in secondi
-    const traces = buildTraces(DATA, time);
+    const traces = buildTraces(time);
     const layout = {{
         xaxis: {{visible: false, autorange: true, scaleanchor: 'y'}},
         yaxis: {{visible: false, autorange: true}},
@@ -162,7 +162,7 @@ function render(){{
     }};
     Plotly.react('graph', traces, layout, {{
         displayModeBar: false,
-        scrollZoom: true,
+        scrollZoom: false,
         responsive: true
     }});
     requestAnimationFrame(render);
@@ -184,7 +184,7 @@ document.getElementById('fullscreen-btn').addEventListener('click', () => {{
 st.components.v1.html(html_code, height=800, scrolling=False)
 
 # ℹ️ Caption + descrizione
-st.caption("🎨 Premi ⛶ per il fullscreen totale. Ogni spirale pulsa a velocità proporzionale al punteggio medio del partecipante.")
+st.caption("🎨 Premi ⛶ per il fullscreen totale. Ogni spirale sfarfalla a velocità proporzionale al punteggio medio del partecipante.")
 st.markdown("---")
 st.markdown("""
 ### 🧭 *Empatia come consapevolezza dell’impatto*
@@ -193,7 +193,7 @@ st.markdown("""
 
 **Breve descrizione:**  
 Ogni spirale rappresenta un individuo.  
-L'inclinazione alternata e la pulsazione personalizzata creano un'opera viva e ritmica.
+L'inclinazione alternata e lo sfarfallio personalizzato creano un'opera viva, pulsante e ritmica.
 """)
 
 
