@@ -127,11 +127,12 @@ async function drawGraph(){
     const data = await fetchData();
     const traces = buildTraces(data);
     const layout = {
-        xaxis: {visible: false},
-        yaxis: {visible: false},
+        xaxis: {visible: false, autorange: true, scaleanchor: 'y'},
+        yaxis: {visible: false, autorange: true},
         margin: {t:0,b:0,l:0,r:0},
         paper_bgcolor: 'black',
-        plot_bgcolor: 'black'
+        plot_bgcolor: 'black',
+        autosize: true
     };
     Plotly.newPlot('graph', traces, layout, {displayModeBar: false});
 }
@@ -139,17 +140,19 @@ async function drawGraph(){
 // Primo disegno
 drawGraph();
 
-// Aggiornamento ogni 10 secondi senza ricreare il canvas
+// Aggiornamento ogni 10 secondi con range automatico
 setInterval(async () => {
     const data = await fetchData();
     const traces = buildTraces(data);
-    Plotly.react('graph', traces, {
-        xaxis: {visible: false},
-        yaxis: {visible: false},
+    const layout = {
+        xaxis: {visible: false, autorange: true, scaleanchor: 'y'},
+        yaxis: {visible: false, autorange: true},
         margin: {t:0,b:0,l:0,r:0},
         paper_bgcolor: 'black',
-        plot_bgcolor: 'black'
-    }, {displayModeBar: false});
+        plot_bgcolor: 'black',
+        autosize: true
+    };
+    Plotly.react('graph', traces, layout, {displayModeBar: false});
 }, 10000);
 </script>
 </body>
@@ -161,7 +164,7 @@ st.components.v1.html(html_code, height=800, scrolling=False)
 # ─────────────────────────────
 # DESCRIZIONI SOTTO L'OPERA
 # ─────────────────────────────
-st.caption("🎨 Le spirali si rigenerano ogni 10 secondi con effetto 'respiro'. Ogni spirale rappresenta un partecipante.")
+st.caption("🎨 Le spirali si rigenerano ogni 10 secondi. Ogni spirale rappresenta un partecipante.")
 st.markdown("---")
 st.markdown("""
 ### 🧭 *Empatia come consapevolezza dell’impatto*
@@ -170,9 +173,8 @@ st.markdown("""
 
 **Breve descrizione:**  
 Ogni spirale rappresenta un individuo.  
-L'inclinazione alternata e il respiro collettivo creano un'opera viva, che evolve al ritmo delle risposte.
+L'inclinazione alternata crea un'opera viva, che evolve al ritmo delle risposte.
 """)
-
 
 
 
