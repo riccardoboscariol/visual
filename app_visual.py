@@ -82,7 +82,7 @@ if "data" in query_params:
     st.stop()
 
 # ─────────────────────────────
-# HTML + JAVASCRIPT PER GRAFICO
+# HTML + JAVASCRIPT PER GRAFICO (con debug)
 # ─────────────────────────────
 html_code = """
 <!DOCTYPE html>
@@ -100,8 +100,11 @@ body { margin:0; background:black; overflow:hidden; }
 const APP_URL = "https://appvisual.streamlit.app/";
 
 async function fetchData(){
+    console.log("Tentativo di fetch da:", APP_URL + "?data=1");
     const resp = await fetch(APP_URL + "?data=1");
-    return await resp.json();
+    const jsonData = await resp.json();
+    console.log("Dati ricevuti:", jsonData);
+    return jsonData;
 }
 
 function buildTraces(data){
@@ -127,7 +130,14 @@ function buildTraces(data){
 
 async function drawGraph(){
     const data = await fetchData();
+    console.log("Numero spirali:", data.spirali.length);
+    if (data.spirali.length > 0) {
+        console.log("Prime coordinate X:", data.spirali[0].x.slice(0,5));
+        console.log("Prime coordinate Y:", data.spirali[0].y.slice(0,5));
+    }
     const traces = buildTraces(data);
+    console.log("Numero traces generati:", traces.length);
+
     const layout = {
         xaxis: {visible: false, autorange: true, scaleanchor: 'y'},
         yaxis: {visible: false, autorange: true},
@@ -146,6 +156,7 @@ drawGraph();
 setInterval(async () => {
     const data = await fetchData();
     const traces = buildTraces(data);
+    console.log("Aggiornamento traces:", traces.length);
     const layout = {
         xaxis: {visible: false, autorange: true, scaleanchor: 'y'},
         yaxis: {visible: false, autorange: true},
@@ -177,10 +188,6 @@ st.markdown("""
 Ogni spirale rappresenta un individuo.  
 L'inclinazione alternata crea un'opera viva, che evolve al ritmo delle risposte.
 """)
-
-
-
-
 
 
 
