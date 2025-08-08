@@ -28,6 +28,9 @@ st.markdown("""
         height: 100vh !important;
         width: 100vw !important;
     }
+    :fullscreen {
+        cursor: none;
+    }
     </style>
 """, unsafe_allow_html=True)
 
@@ -47,7 +50,7 @@ if df.empty:
     st.warning("Nessuna risposta ancora.")
     st.stop()
 
-# 🎨 Colori fissi per scala
+# 🎨 Colori per dimensione dominante
 dimension_colors = {
     "PT": "#e84393",               # fucsia
     "Fantasy": "#e67e22",          # arancio
@@ -55,58 +58,47 @@ dimension_colors = {
     "Personal Distress": "#9b59b6" # viola
 }
 
-# 🔧 Parametri spirali
 theta = np.linspace(0, 12 * np.pi, 1200)
-TIE_SPREAD = 0.03  # 3% di variazione di raggio tra spirali duplicate (pareggio)
-
 spirali = []
 
 for idx, row in df.iterrows():
-    # Punteggi e media
-    scores = {
-        "PT": row["PT"],
-        "Fantasy": row["Fantasy"],
-        "Empathic Concern": row["Empathic Concern"],
-        "Personal Distress": row["Personal Distress"]
-    }
-    media = float(np.mean(list(scores.values())))
-    intensity = float(np.clip(media / 5, 0.2, 1.0))
-    freq = float(0.5 + (media / 5) * (3.0 - 0.5))  # Hz per sfarfallio
+    # Punteggio medio
+    media = np.mean([
+        row["PT"], row["Fantasy"], row["Empathic Concern"], row["Personal Distress"]
+    ])
+    intensity = np.clip(media / 5, 0.2, 1.0)
+    freq = 0.5 + (media / 5) * (3.0 - 0.5)
 
-    # Geometria base (senza tie-offset)
-    r = 0.3 + idx * 0.08
-    base_radius = r * (theta / max(theta)) * intensity * 4.5
-    base_x = base_radius * np.cos(theta + idx)
-    base_y = base_radius * np.sin(theta + idx)
+    # Dimensioni con punteggio massimo (gestione pareggi)
+    max_score = max(row["PT"], row["Fantasy"], row["Empathic Concern"], row["Personal Distress"])
+    dominant_dims = [
+        dim for dim in ["PT", "Fantasy", "Empathic Concern", "Personal Distress"]
+        if row[dim] == max_score
+    ]
 
-    # Inclinazione alternata
-    if idx % 2 == 0:
-        base_y_proj = base_y * 0.5 + base_x * 0.2
-    else:
-        base_y_proj = base_y * 0.5 - base_x * 0.2
+    for d_idx, dominant_dimension in enumerate(dominant_dims):
+        color = dimension_colors[dominant_dimension]
+        r = 0.3 + (idx + d_idx * 0.05) * 0.08  # piccolo offset se più spirali per stesso partecipante
+        radius = r * (theta / max(theta)) * intensity * 4.5
 
-    # Dominanti (gestione pareggi → più spirali)
-    max_val = max(scores.values())
-    dominant_dims = [dim for dim, val in scores.items() if val == max_val]
-    t = len(dominant_dims)
+        x = radius * np.cos(theta + idx)
+        y = radius * np.sin(theta + idx)
 
-    for k, dim in enumerate(dominant_dims):
-        # scala di raggio per separare visivamente spirali duplicate (centrate)
-        # esempi: t=2 -> scale: [-0.015, +0.015]; t=3 -> [-0.03, 0, +0.03]
-        scale = 1.0 + (k - (t - 1) / 2.0) * TIE_SPREAD
-
-        x = (base_x * scale).tolist()
-        y_proj = (base_y_proj * scale).tolist()
+        # Inclinazione alternata
+        if idx % 2 == 0:
+            y_proj = y * 0.5 + x * 0.2
+        else:
+            y_proj = y * 0.5 - x * 0.2
 
         spirali.append({
-            "x": x,
-            "y": y_proj,
-            "color": dimension_colors[dim],
-            "intensity": intensity,
-            "freq": freq
+            "x": x.tolist(),
+            "y": y_proj.tolist(),
+            "color": color,
+            "intensity": float(intensity),
+            "freq": float(freq)
         })
 
-# 📏 Offset verticale per centratura visiva
+# 📏 Offset verticale per centratura perfetta
 all_y = np.concatenate([np.array(s["y"]) for s in spirali])
 y_min, y_max = all_y.min(), all_y.max()
 y_range = y_max - y_min
@@ -116,7 +108,7 @@ for s in spirali:
 
 data_json = json.dumps({"spirali": spirali})
 
-# 📊 HTML + JS (render una volta, poi aggiorna solo opacità a 25fps) + fullscreen
+# 📊 HTML + JS animazione continua
 html_code = f"""
 <!DOCTYPE html>
 <html>
@@ -150,63 +142,51 @@ body {{ margin:0; background:black; overflow:hidden; }}
 <div id="graph"></div>
 <script>
 const DATA = {data_json};
-
-// Costruiamo le tracce una sola volta (segmenti) per performance
-const step = 4;
-let traces = [];
-DATA.spirali.forEach(s => {{
-    for (let j = 1; j < s.x.length; j += step) {{
-        traces.push({{
-            x: s.x.slice(j-1, j+1),
-            y: s.y.slice(j-1, j+1),
-            mode: "lines",
-            line: {{ color: s.color, width: 1.5 + s.intensity * 3 }},
-            opacity: 0,  // inizialmente trasparenti; le accendiamo sotto
-            hoverinfo: "none",
-            showlegend: false,
-            type: "scatter"
-        }});
-    }}
-}});
-
-const layout = {{
-    xaxis: {{ visible: false, autorange: true, scaleanchor: 'y' }},
-    yaxis: {{ visible: false, autorange: true }},
-    margin: {{ t:0, b:0, l:0, r:0 }},
-    paper_bgcolor: 'black',
-    plot_bgcolor: 'black',
-    autosize: true
-}};
-
-Plotly.newPlot('graph', traces, layout, {{
-    displayModeBar: false,
-    scrollZoom: false,
-    responsive: true
-}});
-
-// Aggiorniamo SOLO l'opacità a ~25fps per ridurre carico
 let t0 = Date.now();
-const updateIntervalMs = 40;
 
-setInterval(() => {{
-    const time = (Date.now() - t0) / 1000;
-    let newOpacities = new Array(traces.length);
-    let index = 0;
-
+function buildTraces(time){{
+    const traces = [];
     DATA.spirali.forEach(s => {{
-        // sfarfallio in base a freq del partecipante (costante per i duplicati)
+        const step = 4;
         const flicker = 0.5 + 0.5 * Math.sin(2 * Math.PI * s.freq * time);
-        for (let j = 1; j < s.x.length; j += step) {{
-            const baseAlpha = 0.2 + 0.7 * (j / s.x.length);
-            newOpacities[index] = Math.max(0, baseAlpha * flicker);
-            index++;
+        for(let j=1; j < s.x.length; j += step){{
+            const alpha = (0.2 + 0.7 * (j / s.x.length)) * flicker;
+            traces.push({{
+                x: s.x.slice(j-1, j+1),
+                y: s.y.slice(j-1, j+1),
+                mode: "lines",
+                line: {{color: s.color, width: 1.5 + s.intensity * 3}},
+                opacity: Math.max(0, alpha),
+                hoverinfo: "none",
+                showlegend: false,
+                type: "scatter"
+            }});
         }}
     }});
+    return traces;
+}}
 
-    Plotly.restyle('graph', {{ opacity: [newOpacities] }});
-}}, updateIntervalMs);
+function render(){{
+    const time = (Date.now() - t0) / 1000;
+    const traces = buildTraces(time);
+    const layout = {{
+        xaxis: {{visible: false, autorange: true, scaleanchor: 'y'}},
+        yaxis: {{visible: false, autorange: true}},
+        margin: {{t:0,b:0,l:0,r:0}},
+        paper_bgcolor: 'black',
+        plot_bgcolor: 'black',
+        autosize: true
+    }};
+    Plotly.react('graph', traces, layout, {{
+        displayModeBar: false,
+        scrollZoom: false,
+        responsive: true
+    }});
+    requestAnimationFrame(render);
+}}
 
-// Fullscreen
+render();
+
 document.getElementById('fullscreen-btn').addEventListener('click', () => {{
     const graphDiv = document.getElementById('graph');
     if (graphDiv.requestFullscreen) graphDiv.requestFullscreen();
@@ -221,13 +201,19 @@ document.getElementById('fullscreen-btn').addEventListener('click', () => {{
 st.components.v1.html(html_code, height=800, scrolling=False)
 
 # ℹ️ Caption + descrizione
-st.caption("🎨 Pareggi senza aleatorietà: per ogni scala a pari merito nasce una spirale, con piccoli scarti concentrici. Pulsante ⛶ per fullscreen.")
+st.caption("🎨 Premi ⛶ per il fullscreen totale. Ogni spirale sfarfalla a velocità proporzionale al punteggio medio del partecipante. In caso di pareggio, vengono disegnate più spirali.")
 st.markdown("---")
 st.markdown("""
 ### 🧭 *Empatia come consapevolezza dell’impatto*
-Ogni spirale rappresenta un individuo; in caso di pareggio tra scale dominanti, ne vedi più di una, una per ciascuna scala, con colore dedicato e lieve scarto radiale.
-Lo sfarfallio resta proporzionale al punteggio medio.
+
+> *“L’empatia non è solo sentire l’altro, ma riconoscere il proprio impatto sul mondo e sulla realtà condivisa. È un atto di presenza responsabile.”*
+
+**Breve descrizione:**  
+Ogni spirale rappresenta un individuo o una dimensione in caso di punteggi massimi uguali.  
+L'inclinazione alternata e lo sfarfallio personalizzato creano un'opera viva, pulsante e ritmica.
 """)
+
+
 
 
 
