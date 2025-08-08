@@ -2,17 +2,14 @@ import streamlit as st
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 import pandas as pd
-import plotly.graph_objects as go
 import numpy as np
 import json
-import colorsys
-import time
+from streamlit_autorefresh import st_autorefresh
 
-st.cache_data.clear()
-st.cache_resource.clear()
+# 🔄 Auto-refresh ogni 10 secondi
+st_autorefresh(interval=10000, key="refresh")
 
-
-# 📌 Auto-refresh ogni 10 secondi
+# 🖥 Configurazione Streamlit
 st.set_page_config(page_title="Specchio empatico", layout="wide")
 st.markdown("""
     <style>
@@ -31,13 +28,10 @@ st.markdown("""
         height: 100vh !important;
         width: 100vw !important;
     }
-    :fullscreen {
-        cursor: none;
-    }
     </style>
 """, unsafe_allow_html=True)
 
-# 🔐 Credenziali Google Sheets
+# 🔐 Connessione Google Sheets
 scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
 creds_dict = dict(st.secrets["credentials"])
 if isinstance(creds_dict, str):
@@ -46,114 +40,162 @@ creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
 client = gspread.authorize(creds)
 sheet = client.open_by_key("16amhP4JqU5GsGg253F2WJn9rZQIpx1XsP3BHIwXq1EA").sheet1
 
-# 📥 Lettura dati
+# 📥 Dati
 records = sheet.get_all_records()
 df = pd.DataFrame(records)
 if df.empty:
     st.warning("Nessuna risposta ancora.")
     st.stop()
 
-# 🎨 Mappatura base colori (dimensione dominante → colore base HEX)
-dimension_colors = {
-    "PT": "#e84393",               # fucsia
-    "Fantasy": "#e67e22",          # arancio
-    "Empathic Concern": "#3498db", # azzurro
-    "Personal Distress": "#9b59b6" # viola
-}
-
-# 🎯 Funzione per modificare luminosità/saturazione
-def adjust_color(hex_color, factor):
-    # hex → rgb
-    hex_color = hex_color.lstrip('#')
-    r, g, b = tuple(int(hex_color[i:i+2], 16) for i in (0, 2, 4))
-    # rgb → hls
-    h, l, s = colorsys.rgb_to_hls(r/255.0, g/255.0, b/255.0)
-    # modifica luminosità in base al fattore
-    l = min(1.0, l * factor)
-    s = min(1.0, s * factor)
-    # hls → rgb
-    r, g, b = colorsys.hls_to_rgb(h, l, s)
-    return '#%02x%02x%02x' % (int(r*255), int(g*255), int(b*255))
-
-# 🌀 Preparazione spirali
-fig = go.Figure()
+# 🎨 Genera dati spirali
+palette = ["#e84393", "#e67e22", "#3498db", "#9b59b6"]
 theta = np.linspace(0, 12 * np.pi, 1200)
-timestamp = time.time()
+spirali = []
 
 for idx, row in df.iterrows():
-    # punteggio medio
     media = np.mean([row["PT"], row["Fantasy"], row["Empathic Concern"], row["Personal Distress"]])
-    
-    # trova dimensione dominante
-    dominant_dimension = max(
-        ["PT", "Fantasy", "Empathic Concern", "Personal Distress"],
-        key=lambda dim: row[dim]
-    )
-    base_color = dimension_colors[dominant_dimension]
-    
-    # fattore per saturazione/luminosità (da 0.6 a 1.2)
-    color_factor = 0.6 + (media / 5) * 0.6
-    final_color = adjust_color(base_color, color_factor)
-
-    # intensità per spessore linea
     intensity = np.clip(media / 5, 0.2, 1.0)
 
-    # raggio base
+    # Frequenza sfarfallio (0.5 - 3 Hz)
+    freq = 0.5 + (media / 5) * (3.0 - 0.5)
+
     r = 0.3 + idx * 0.08
     radius = r * (theta / max(theta)) * intensity * 4.5
+    color = palette[idx % len(palette)]
 
     x = radius * np.cos(theta + idx)
     y = radius * np.sin(theta + idx)
 
-    # inclinazione alternata
+    # Inclinazione alternata
     if idx % 2 == 0:
         y_proj = y * 0.5 + x * 0.2
     else:
         y_proj = y * 0.5 - x * 0.2
 
-    # sfarfallio in base al punteggio medio
-    freq = 0.5 + (media / 5) * (3.0 - 0.5)  # Hz
-    phase = np.sin(2 * np.pi * freq * timestamp)
+    spirali.append({
+        "x": x.tolist(),
+        "y": y_proj.tolist(),
+        "color": color,
+        "intensity": float(intensity),
+        "freq": float(freq)
+    })
 
-    for j in range(1, len(x), 4):
-        alpha = (0.2 + 0.7 * (j / len(x))) * (0.5 + 0.5 * phase)
-        fig.add_trace(go.Scatter(
-            x=x[j-1:j+1],
-            y=y_proj[j-1:j+1],
-            mode="lines",
-            line=dict(color=final_color, width=1.5 + intensity * 3),
-            opacity=max(0, alpha),
-            hoverinfo="none",
-            showlegend=False
-        ))
+# 📏 Calcolo offset verticale per centratura perfetta
+all_y = np.concatenate([np.array(s["y"]) for s in spirali])
+y_min, y_max = all_y.min(), all_y.max()
+y_range = y_max - y_min
+OFFSET = -0.06 * y_range
+for s in spirali:
+    s["y"] = (np.array(s["y"]) + OFFSET).tolist()
 
-# ⚙️ Layout grafico
-fig.update_layout(
-    xaxis=dict(visible=False),
-    yaxis=dict(visible=False),
-    margin=dict(t=0, b=0, l=0, r=0),
-    plot_bgcolor='black',
-    paper_bgcolor='black',
-    autosize=True,
-    height=1000,
-    width=2000
-)
+data_json = json.dumps({"spirali": spirali})
 
-# 🔳 Mostra grafico
-st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
+# 📊 HTML + JS con effetto sfarfallio
+html_code = f"""
+<!DOCTYPE html>
+<html>
+<head>
+<script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+<style>
+body {{ margin:0; background:black; overflow:hidden; }}
+#graph {{ width:100vw; height:100vh; position:relative; }}
+#fullscreen-btn {{
+    position: absolute;
+    top: 10px; right: 10px;
+    z-index: 9999;
+    background: rgba(255,255,255,0.2);
+    color: white;
+    border: none;
+    padding: 6px 10px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 18px;
+}}
+#fullscreen-btn:hover {{
+    background: rgba(255,255,255,0.4);
+}}
+:fullscreen {{
+    cursor: none;
+}}
+</style>
+</head>
+<body>
+<button id="fullscreen-btn">⛶</button>
+<div id="graph"></div>
+<script>
+const DATA = {data_json};
+let t0 = Date.now();
 
-# 📘 Descrizione
+function buildTraces(time){{
+    const traces = [];
+    DATA.spirali.forEach(s => {{
+        const step = 4;
+        // Calcolo opacità variabile in base alla frequenza
+        const flicker = 0.5 + 0.5 * Math.sin(2 * Math.PI * s.freq * time);
+        for(let j=1; j < s.x.length; j += step){{
+            const alpha = (0.2 + 0.7 * (j / s.x.length)) * flicker;
+            traces.push({{
+                x: s.x.slice(j-1, j+1),
+                y: s.y.slice(j-1, j+1),
+                mode: "lines",
+                line: {{color: s.color, width: 1.5 + s.intensity * 3}},
+                opacity: Math.max(0, alpha),
+                hoverinfo: "none",
+                showlegend: false,
+                type: "scatter"
+            }});
+        }}
+    }});
+    return traces;
+}}
+
+function render(){{
+    const time = (Date.now() - t0) / 1000; // in secondi
+    const traces = buildTraces(time);
+    const layout = {{
+        xaxis: {{visible: false, autorange: true, scaleanchor: 'y'}},
+        yaxis: {{visible: false, autorange: true}},
+        margin: {{t:0,b:0,l:0,r:0}},
+        paper_bgcolor: 'black',
+        plot_bgcolor: 'black',
+        autosize: true
+    }};
+    Plotly.react('graph', traces, layout, {{
+        displayModeBar: false,
+        scrollZoom: false,
+        responsive: true
+    }});
+    requestAnimationFrame(render);
+}}
+
+render();
+
+document.getElementById('fullscreen-btn').addEventListener('click', () => {{
+    const graphDiv = document.getElementById('graph');
+    if (graphDiv.requestFullscreen) graphDiv.requestFullscreen();
+    else if (graphDiv.webkitRequestFullscreen) graphDiv.webkitRequestFullscreen();
+    else if (graphDiv.msRequestFullscreen) graphDiv.msRequestFullscreen();
+}});
+</script>
+</body>
+</html>
+"""
+
+st.components.v1.html(html_code, height=800, scrolling=False)
+
+# ℹ️ Caption + descrizione
+st.caption("🎨 Premi ⛶ per il fullscreen totale. Ogni spirale sfarfalla a velocità proporzionale al punteggio medio del partecipante.")
 st.markdown("---")
 st.markdown("""
 ### 🧭 *Empatia come consapevolezza dell’impatto*
 
-Ogni spirale rappresenta un partecipante.
-- **Colore base** → dimensione empatica dominante.
-- **Luminosità/Saturazione** → proporzionale al punteggio medio (più alto → colore più brillante).
-- **Sfarfallio** → più veloce con punteggi medi alti.
+> *“L’empatia non è solo sentire l’altro, ma riconoscere il proprio impatto sul mondo e sulla realtà condivisa. È un atto di presenza responsabile.”*
 
-L'opera evolve in tempo reale con l'arrivo di nuove risposte.
+**Breve descrizione:**  
+Ogni spirale rappresenta un individuo.  
+L'inclinazione alternata e lo sfarfallio personalizzato creano un'opera viva, pulsante e ritmica.
 """)
+
 
 
 
