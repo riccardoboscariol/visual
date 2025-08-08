@@ -151,5 +151,3 @@ Ogni spirale rappresenta un partecipante.
 L'opera evolve in tempo reale con l'arrivo di nuove risposte.
 """)
 
-
-
