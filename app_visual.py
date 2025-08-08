@@ -76,7 +76,7 @@ for idx, row in df.iterrows():
 
 data_json = json.dumps({"spirali": spirali})
 
-# 📊 HTML + JS con dati incorporati
+# 📊 HTML + JS con dati incorporati e pulsante fullscreen
 html_code = f"""
 <!DOCTYPE html>
 <html>
@@ -85,9 +85,25 @@ html_code = f"""
 <style>
 body {{ margin:0; background:black; overflow:hidden; }}
 #graph {{ width:100vw; height:100vh; }}
+#fullscreen-btn {{
+    position: absolute;
+    top: 10px; right: 10px;
+    z-index: 9999;
+    background: rgba(255,255,255,0.2);
+    color: white;
+    border: none;
+    padding: 6px 10px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 18px;
+}}
+#fullscreen-btn:hover {{
+    background: rgba(255,255,255,0.4);
+}}
 </style>
 </head>
 <body>
+<button id="fullscreen-btn">⛶</button>
 <div id="graph"></div>
 <script>
 const DATA = {data_json};
@@ -126,6 +142,17 @@ function drawGraph(){{
     Plotly.newPlot('graph', traces, layout, {{displayModeBar: false}});
 }}
 
+document.getElementById("fullscreen-btn").addEventListener("click", () => {{
+    const graphDiv = document.getElementById("graph");
+    if (graphDiv.requestFullscreen) {{
+        graphDiv.requestFullscreen();
+    }} else if (graphDiv.webkitRequestFullscreen) {{
+        graphDiv.webkitRequestFullscreen();
+    }} else if (graphDiv.msRequestFullscreen) {{
+        graphDiv.msRequestFullscreen();
+    }}
+}});
+
 drawGraph();
 </script>
 </body>
@@ -135,7 +162,7 @@ drawGraph();
 st.components.v1.html(html_code, height=800, scrolling=False)
 
 # ℹ️ Caption + descrizione
-st.caption("🎨 Le spirali si rigenerano ogni 10 secondi senza interruzioni visive. Ogni spirale rappresenta un partecipante.")
+st.caption("🎨 Le spirali si rigenerano ogni 10 secondi senza interruzioni visive. Premi ⛶ per la modalità schermo intero totale.")
 st.markdown("---")
 st.markdown("""
 ### 🧭 *Empatia come consapevolezza dell’impatto*
@@ -146,7 +173,6 @@ st.markdown("""
 Ogni spirale rappresenta un individuo.  
 L'inclinazione alternata crea un'opera viva, che evolve al ritmo delle risposte.
 """)
-
 
 
 
