@@ -48,56 +48,40 @@ if df.empty:
     st.warning("Nessuna risposta ancora.")
     st.stop()
 
-# 🎨 Mappatura base colori (dimensione dominante → colore base HEX)
+# 🎨 Colori base per dimensione
 dimension_colors = {
-    "PT": "#e84393",               # fucsia
-    "Fantasy": "#e67e22",          # arancio
-    "Empathic Concern": "#3498db", # azzurro
-    "Personal Distress": "#9b59b6" # viola
+    "PT": "#e84393",
+    "Fantasy": "#e67e22",
+    "Empathic Concern": "#3498db",
+    "Personal Distress": "#9b59b6"
 }
 
-# 🎨 Genera dati spirali
 theta = np.linspace(0, 12 * np.pi, 1200)
 spirali = []
 
 for idx, row in df.iterrows():
-    # punteggio medio
-    media = np.mean([
-        row["PT"],
-        row["Fantasy"],
-        row["Empathic Concern"],
-        row["Personal Distress"]
-    ])
-    
-    # trova il punteggio massimo
-    max_score = max(row["PT"], row["Fantasy"], row["Empathic Concern"], row["Personal Distress"])
-    
-    # trova tutte le scale con quel punteggio
-    dominant_candidates = [
-        dim for dim in ["PT", "Fantasy", "Empathic Concern", "Personal Distress"]
-        if row[dim] == max_score
-    ]
-    
-    # sceglie a caso tra le scale a pari punteggio
-    dominant_dimension = random.choice(dominant_candidates)
-    
-    # assegna il colore base
-    color = dimension_colors[dominant_dimension]
+    punteggi = {
+        "PT": row["PT"],
+        "Fantasy": row["Fantasy"],
+        "Empathic Concern": row["Empathic Concern"],
+        "Personal Distress": row["Personal Distress"]
+    }
+    max_val = max(punteggi.values())
+    dimensioni_max = [dim for dim, val in punteggi.items() if val == max_val]
+    dominante = random.choice(dimensioni_max)
 
-    # intensità per spessore linea
+    color = dimension_colors[dominante]
+
+    media = np.mean(list(punteggi.values()))
     intensity = np.clip(media / 5, 0.2, 1.0)
-
-    # frequenza sfarfallio (0.5 - 3 Hz)
     freq = 0.5 + (media / 5) * (3.0 - 0.5)
 
-    # calcolo coordinate spirale
     r = 0.3 + idx * 0.08
     radius = r * (theta / max(theta)) * intensity * 4.5
 
     x = radius * np.cos(theta + idx)
     y = radius * np.sin(theta + idx)
 
-    # inclinazione alternata
     if idx % 2 == 0:
         y_proj = y * 0.5 + x * 0.2
     else:
@@ -111,7 +95,7 @@ for idx, row in df.iterrows():
         "freq": float(freq)
     })
 
-# 📏 Offset verticale per centratura perfetta
+# 📏 Offset verticale per centratura
 all_y = np.concatenate([np.array(s["y"]) for s in spirali])
 y_min, y_max = all_y.min(), all_y.max()
 y_range = y_max - y_min
@@ -121,7 +105,7 @@ for s in spirali:
 
 data_json = json.dumps({"spirali": spirali})
 
-# 📊 HTML + JS con effetto sfarfallio e pulsante fullscreen
+# 📊 HTML + JS ottimizzato
 html_code = f"""
 <!DOCTYPE html>
 <html>
@@ -155,50 +139,56 @@ body {{ margin:0; background:black; overflow:hidden; }}
 <div id="graph"></div>
 <script>
 const DATA = {data_json};
-let t0 = Date.now();
 
-function buildTraces(time){{
-    const traces = [];
+// Creiamo le tracce una sola volta
+const step = 4;
+let traces = [];
+DATA.spirali.forEach(s => {{
+    for(let j=1; j < s.x.length; j += step){{
+        const alpha = 0; // inizialmente trasparenti
+        traces.push({{
+            x: s.x.slice(j-1, j+1),
+            y: s.y.slice(j-1, j+1),
+            mode: "lines",
+            line: {{color: s.color, width: 1.5 + s.intensity * 3}},
+            opacity: alpha,
+            hoverinfo: "none",
+            showlegend: false,
+            type: "scatter"
+        }});
+    }}
+}});
+
+const layout = {{
+    xaxis: {{visible: false, autorange: true, scaleanchor: 'y'}},
+    yaxis: {{visible: false, autorange: true}},
+    margin: {{t:0,b:0,l:0,r:0}},
+    paper_bgcolor: 'black',
+    plot_bgcolor: 'black',
+    autosize: true
+}};
+
+Plotly.newPlot('graph', traces, layout, {{
+    displayModeBar: false,
+    scrollZoom: false,
+    responsive: true
+}});
+
+let t0 = Date.now();
+setInterval(() => {{
+    const time = (Date.now() - t0) / 1000;
+    let newOpacities = [];
+    let index = 0;
     DATA.spirali.forEach(s => {{
-        const step = 4;
         const flicker = 0.5 + 0.5 * Math.sin(2 * Math.PI * s.freq * time);
         for(let j=1; j < s.x.length; j += step){{
             const alpha = (0.2 + 0.7 * (j / s.x.length)) * flicker;
-            traces.push({{
-                x: s.x.slice(j-1, j+1),
-                y: s.y.slice(j-1, j+1),
-                mode: "lines",
-                line: {{color: s.color, width: 1.5 + s.intensity * 3}},
-                opacity: Math.max(0, alpha),
-                hoverinfo: "none",
-                showlegend: false,
-                type: "scatter"
-            }});
+            newOpacities[index] = Math.max(0, alpha);
+            index++;
         }}
     }});
-    return traces;
-}}
-
-function render(){{
-    const time = (Date.now() - t0) / 1000;
-    const traces = buildTraces(time);
-    const layout = {{
-        xaxis: {{visible: false, autorange: true, scaleanchor: 'y'}},
-        yaxis: {{visible: false, autorange: true}},
-        margin: {{t:0,b:0,l:0,r:0}},
-        paper_bgcolor: 'black',
-        plot_bgcolor: 'black',
-        autosize: true
-    }};
-    Plotly.react('graph', traces, layout, {{
-        displayModeBar: false,
-        scrollZoom: false,
-        responsive: true
-    }});
-    requestAnimationFrame(render);
-}}
-
-render();
+    Plotly.restyle('graph', {{opacity: [newOpacities]}});
+}}, 40); // ~25 fps
 
 document.getElementById('fullscreen-btn').addEventListener('click', () => {{
     const graphDiv = document.getElementById('graph');
@@ -213,20 +203,7 @@ document.getElementById('fullscreen-btn').addEventListener('click', () => {{
 
 st.components.v1.html(html_code, height=800, scrolling=False)
 
-# ℹ️ Caption + descrizione
-st.caption("🎨 Premi ⛶ per il fullscreen totale. Ogni spirale ha un colore basato sulla dimensione empatica dominante e uno sfarfallio proporzionale al punteggio medio del partecipante.")
-st.markdown("---")
-st.markdown("""
-### 🧭 *Empatia come consapevolezza dell’impatto*
-
-> *“L’empatia non è solo sentire l’altro, ma riconoscere il proprio impatto sul mondo e sulla realtà condivisa. È un atto di presenza responsabile.”*
-
-**Breve descrizione:**  
-Ogni spirale rappresenta un individuo.  
-Il colore è determinato dalla scala con punteggio più alto (scelta casuale in caso di pareggio).  
-L'inclinazione alternata e lo sfarfallio personalizzato creano un'opera viva, pulsante e ritmica.
-""")
-
+st.caption("🎨 Premi ⛶ per il fullscreen totale. Colore = scala dominante, casuale in caso di pareggio. Sfarfallio proporzionale al punteggio medio.")
 
 
 
