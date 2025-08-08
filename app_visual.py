@@ -114,13 +114,14 @@ def genera_figura():
     )
     return fig
 
-# 🎯 Genera figura e inserisci HTML solo quando pronta
+# 🎯 Genera figura e HTML
 fig = genera_figura()
 html_str = pio.to_html(fig, include_plotlyjs='cdn', full_html=False, config={"displayModeBar": False})
 
-# Mostra grafico senza flicker
+# 🖼️ Mostra grafico senza blink
 placeholder = st.empty()
-placeholder.html(html_str, height=1000, scrolling=False)
+with placeholder:
+    components.html(html_str, height=1000, scrolling=False)
 
 # ℹ️ Caption
 st.caption("🎨 Le spirali si rigenerano solo quando nuovi dati vengono rilevati. Effetto 'respiro' sincronizzato.")
@@ -136,7 +137,6 @@ st.markdown("""
 Ogni spirale rappresenta un individuo.  
 L'inclinazione alternata e il respiro collettivo creano un'opera viva, che evolve al ritmo delle risposte.
 """)
-
 
 
 
